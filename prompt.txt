@@ -1,0 +1,19 @@
+This is a running app. It's going to run entirely on the phone, it will help the user log and keep track of their runs. Just like a normal health app it should:
+
+* Allow the user to start, pause, and stop a run, they can set the type of run to be endless, duration based, or distance based.
+* The app will track their location throughout the run as well as their elevation, their heartrate, calories, pace, spm, etc... The normal run stuff.
+* Once the run finishes, the user can view the statistics of their run, like elevation over time, the map of their route, their average pace, etc... Again, the normal stuff.
+* The user can export their runs to common gpx format, or whatever popular data file formats are available so that they can use them for their own analysis.
+
+There is no data on a server anywhere, all of the processing and tracking and everything takes place directly on the user's phone, there are no accounts, no privacy policies, nothing, it's all offline.
+
+I would also like to integrate this into a google pixel watch, or wear os, or whatever it's called now so that the user can view their runs on their watch as they are doing them. They should also be able to pause and stop their runs from their watch too.
+
+Basically the app will have a few basic views:
+
+1. The user can modify their settings, specifically about maybe their weight, or whatever the watch needs in order to calculate accurate calorie burn.
+2. The main page where the user can see their current run history as well as a button for modifying their settings (a gear icon) and a button to start a new run. The run history will be editable, and the user can delete runs if necessary, or upload external gpx data as well.
+3. The run screen will show a map indicating the user's current location as well as showing their route of what they've run so far (basically plotting their location over time) along with time/distance remaining (if applicable), and a few relevant metrics like average pace, current pace, current distance and calories burned.
+4. The post run summary screen and run detail screen this will allow the user to view the stats for their run as well as a map of the entire route, and their pace over time, their elevation over time, average pace, pace distribution, etc... The cool statistics, this is also where the user can export their run data to gpx or whatever.
+
+I think the first thing to do would be to get the UI set up and semi-functional, then we can work on getting the guts put in, what do you think?
