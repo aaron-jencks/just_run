@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Just Run</string>
+    <string name="widget_steps_title">Daily Steps</string>
+    <string name="widget_calories_title">Daily Calories</string>
+    <string name="widget_steps_progress_description">Daily steps widget with progress bar</string>
+    <string name="widget_steps_text_description">Daily steps text widget</string>
+    <string name="widget_calories_progress_description">Daily calories widget with progress bar</string>
+    <string name="widget_calories_text_description">Daily calories text widget</string>
 </resources>

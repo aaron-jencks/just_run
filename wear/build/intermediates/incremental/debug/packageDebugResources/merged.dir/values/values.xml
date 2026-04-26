@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Just Run</string>
+    <string name="complication_calories_description">Daily calorie burn progress</string>
+    <string name="complication_calories_name">Daily Calories</string>
+    <string name="complication_heart_rate_description">Current heart rate</string>
+    <string name="complication_heart_rate_name">Heart Rate</string>
+    <string name="complication_steps_description">Daily steps progress</string>
+    <string name="complication_steps_name">Daily Steps</string>
+</resources>

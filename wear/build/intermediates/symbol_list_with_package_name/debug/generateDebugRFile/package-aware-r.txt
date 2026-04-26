@@ -1,0 +1,14 @@
+com.example.justrun
+drawable home_banner
+drawable ic_launcher_background
+drawable ic_launcher_foreground_image
+drawable icon_foreground_source
+mipmap ic_launcher
+mipmap ic_launcher_round
+string app_name
+string complication_calories_description
+string complication_calories_name
+string complication_heart_rate_description
+string complication_heart_rate_name
+string complication_steps_description
+string complication_steps_name

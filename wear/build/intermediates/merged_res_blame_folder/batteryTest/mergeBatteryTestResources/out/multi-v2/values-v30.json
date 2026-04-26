@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.example.justrun.wear-mergeBatteryTestResources-37:/values-v30/values-v30.xml",
+            "map": [
+                {
+                    "source": "/home/aaron/.gradle/caches/9.1.0/transforms/97f6d5fc57429e94b6799a460f1e955c/transformed/material3-release/res/values-v30/values-v30.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    }
+                }
+            ]
+        }
+    ]
+}

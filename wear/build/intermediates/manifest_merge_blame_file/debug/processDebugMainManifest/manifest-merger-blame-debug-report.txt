@@ -1,0 +1,328 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.example.justrun"
+4    android:versionCode="1"
+5    android:versionName="1.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="30"
+9        android:targetSdkVersion="36" />
+10
+11    <uses-feature android:name="android.hardware.type.watch" />
+11-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:4:5-64
+11-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:4:19-61
+12
+13    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+13-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:5:5-79
+13-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:5:22-76
+14    <uses-permission
+14-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:6:5-98
+15        android:name="android.permission.BODY_SENSORS"
+15-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:6:22-68
+16        android:maxSdkVersion="35" />
+16-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:6:69-95
+17    <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+17-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:7:5-81
+17-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:7:22-78
+18    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+18-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:8:5-77
+18-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:8:22-74
+19    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+19-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:9:5-84
+19-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:9:22-81
+20
+21    <queries>
+21-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:19:5-21:15
+22        <package android:name="com.google.android.wearable.healthservices" />
+22-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:20:9-78
+22-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:20:18-75
+23    </queries>
+24
+25    <permission
+25-->[androidx.core:core:1.17.0] /home/aaron/.gradle/caches/9.1.0/transforms/c4c03262979b2cfdbcb8c6bbd426537c/transformed/core-1.17.0/AndroidManifest.xml:22:5-24:47
+26        android:name="com.example.justrun.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+26-->[androidx.core:core:1.17.0] /home/aaron/.gradle/caches/9.1.0/transforms/c4c03262979b2cfdbcb8c6bbd426537c/transformed/core-1.17.0/AndroidManifest.xml:23:9-81
+27        android:protectionLevel="signature" />
+27-->[androidx.core:core:1.17.0] /home/aaron/.gradle/caches/9.1.0/transforms/c4c03262979b2cfdbcb8c6bbd426537c/transformed/core-1.17.0/AndroidManifest.xml:24:9-44
+28
+29    <uses-permission android:name="com.example.justrun.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+29-->[androidx.core:core:1.17.0] /home/aaron/.gradle/caches/9.1.0/transforms/c4c03262979b2cfdbcb8c6bbd426537c/transformed/core-1.17.0/AndroidManifest.xml:26:5-97
+29-->[androidx.core:core:1.17.0] /home/aaron/.gradle/caches/9.1.0/transforms/c4c03262979b2cfdbcb8c6bbd426537c/transformed/core-1.17.0/AndroidManifest.xml:26:22-94
+30
+31    <application
+31-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:11:5-91:19
+32        android:allowBackup="true"
+32-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:12:9-35
+33        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+33-->[androidx.core:core:1.17.0] /home/aaron/.gradle/caches/9.1.0/transforms/c4c03262979b2cfdbcb8c6bbd426537c/transformed/core-1.17.0/AndroidManifest.xml:28:18-86
+34        android:debuggable="true"
+35        android:extractNativeLibs="false"
+36        android:icon="@mipmap/ic_launcher"
+36-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:13:9-43
+37        android:label="@string/app_name"
+37-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:14:9-41
+38        android:roundIcon="@mipmap/ic_launcher_round"
+38-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:15:9-54
+39        android:supportsRtl="true"
+39-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:16:9-35
+40        android:theme="@android:style/Theme.DeviceDefault" >
+40-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:17:9-59
+41        <service
+41-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:18:9-21:54
+42            android:name="com.example.justrun.wear.WearHeartRateService"
+42-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:19:13-54
+43            android:exported="false"
+43-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:20:13-37
+44            android:foregroundServiceType="health" />
+44-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:21:13-51
+45        <service
+45-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:22:9-24:40
+46            android:name="com.example.justrun.wear.WearPassiveHealthService"
+46-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:23:13-58
+47            android:exported="false" />
+47-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:24:13-37
+48        <service
+48-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:25:9-31:19
+49            android:name="com.example.justrun.wear.WearDataListenerService"
+49-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:26:13-57
+50            android:exported="true" >
+50-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:27:13-36
+51            <intent-filter>
+51-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:28:13-30:29
+52                <action android:name="com.google.android.gms.wearable.BIND_LISTENER" />
+52-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:29:17-88
+52-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:29:25-85
+53            </intent-filter>
+54        </service>
+55        <service
+55-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:32:9-47:19
+56            android:name="com.example.justrun.wear.DailyStepsComplicationService"
+56-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:33:13-63
+57            android:exported="true"
+57-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:34:13-36
+58            android:icon="@mipmap/ic_launcher_round"
+58-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:36:13-53
+59            android:label="@string/complication_steps_name"
+59-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:35:13-60
+60            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER" >
+60-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:37:13-99
+61            <intent-filter>
+61-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:38:13-40:29
+62                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+62-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:39:17-116
+62-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:39:25-113
+63            </intent-filter>
+64
+65            <meta-data
+65-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:41:13-43:73
+66                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+66-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:42:17-86
+67                android:value="GOAL_PROGRESS,SHORT_TEXT,RANGED_VALUE" />
+67-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:43:17-70
+68            <meta-data
+68-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:44:13-46:37
+69                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+69-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:45:17-92
+70                android:value="0" />
+70-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:46:17-34
+71        </service>
+72        <service
+72-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:48:9-63:19
+73            android:name="com.example.justrun.wear.DailyCaloriesComplicationService"
+73-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:49:13-66
+74            android:exported="true"
+74-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:50:13-36
+75            android:icon="@mipmap/ic_launcher_round"
+75-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:52:13-53
+76            android:label="@string/complication_calories_name"
+76-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:51:13-63
+77            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER" >
+77-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:53:13-99
+78            <intent-filter>
+78-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:38:13-40:29
+79                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+79-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:39:17-116
+79-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:39:25-113
+80            </intent-filter>
+81
+82            <meta-data
+82-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:41:13-43:73
+83                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+83-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:42:17-86
+84                android:value="GOAL_PROGRESS,SHORT_TEXT,RANGED_VALUE" />
+84-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:43:17-70
+85            <meta-data
+85-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:44:13-46:37
+86                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+86-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:45:17-92
+87                android:value="0" />
+87-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:46:17-34
+88        </service>
+89        <service
+89-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:64:9-79:19
+90            android:name="com.example.justrun.wear.HeartRateComplicationService"
+90-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:65:13-62
+91            android:exported="true"
+91-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:66:13-36
+92            android:icon="@mipmap/ic_launcher_round"
+92-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:68:13-53
+93            android:label="@string/complication_heart_rate_name"
+93-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:67:13-65
+94            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER" >
+94-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:69:13-99
+95            <intent-filter>
+95-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:38:13-40:29
+96                <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />
+96-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:39:17-116
+96-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:39:25-113
+97            </intent-filter>
+98
+99            <meta-data
+99-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:41:13-43:73
+100                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+100-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:42:17-86
+101                android:value="SHORT_TEXT,RANGED_VALUE" />
+101-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:43:17-70
+102            <meta-data
+102-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:44:13-46:37
+103                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+103-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:45:17-92
+104                android:value="0" />
+104-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:46:17-34
+105        </service>
+106
+107        <activity
+107-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:81:9-90:20
+108            android:name="com.example.justrun.wear.WearMainActivity"
+108-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:82:13-50
+109            android:exported="true"
+109-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:83:13-36
+110            android:label="@string/app_name"
+110-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:84:13-45
+111            android:theme="@android:style/Theme.DeviceDefault" >
+111-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:85:13-63
+112            <intent-filter>
+112-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:86:13-89:29
+113                <action android:name="android.intent.action.MAIN" />
+113-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:87:17-69
+113-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:87:25-66
+114
+115                <category android:name="android.intent.category.LAUNCHER" />
+115-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:88:17-77
+115-->/workspace/github/just_run/wear/src/main/AndroidManifest.xml:88:27-74
+116            </intent-filter>
+117        </activity>
+118        <activity
+118-->[com.google.android.gms:play-services-base:18.5.0] /home/aaron/.gradle/caches/9.1.0/transforms/524d68c46b31d190d2af13ed26ec4d5d/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:9-173
+119            android:name="com.google.android.gms.common.api.GoogleApiActivity"
+119-->[com.google.android.gms:play-services-base:18.5.0] /home/aaron/.gradle/caches/9.1.0/transforms/524d68c46b31d190d2af13ed26ec4d5d/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:19-85
+120            android:exported="false"
+120-->[com.google.android.gms:play-services-base:18.5.0] /home/aaron/.gradle/caches/9.1.0/transforms/524d68c46b31d190d2af13ed26ec4d5d/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:146-170
+121            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+121-->[com.google.android.gms:play-services-base:18.5.0] /home/aaron/.gradle/caches/9.1.0/transforms/524d68c46b31d190d2af13ed26ec4d5d/transformed/play-services-base-18.5.0/AndroidManifest.xml:5:86-145
+122
+123        <meta-data
+123-->[com.google.android.gms:play-services-basement:18.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/075dca59f82bd8537ae26133dfa56f25/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:9-122
+124            android:name="com.google.android.gms.version"
+124-->[com.google.android.gms:play-services-basement:18.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/075dca59f82bd8537ae26133dfa56f25/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:20-65
+125            android:value="@integer/google_play_services_version" />
+125-->[com.google.android.gms:play-services-basement:18.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/075dca59f82bd8537ae26133dfa56f25/transformed/play-services-basement-18.4.0/AndroidManifest.xml:6:66-119
+126
+127        <uses-library
+127-->[androidx.wear.watchface:watchface-complications-data:1.2.1] /home/aaron/.gradle/caches/9.1.0/transforms/4bcd72505e6244e9ef74ecfbd9780440/transformed/watchface-complications-data-1.2.1/AndroidManifest.xml:8:9-10:40
+128            android:name="com.google.android.wearable"
+128-->[androidx.wear.watchface:watchface-complications-data:1.2.1] /home/aaron/.gradle/caches/9.1.0/transforms/4bcd72505e6244e9ef74ecfbd9780440/transformed/watchface-complications-data-1.2.1/AndroidManifest.xml:9:13-55
+129            android:required="false" />
+129-->[androidx.wear.watchface:watchface-complications-data:1.2.1] /home/aaron/.gradle/caches/9.1.0/transforms/4bcd72505e6244e9ef74ecfbd9780440/transformed/watchface-complications-data-1.2.1/AndroidManifest.xml:10:13-37
+130
+131        <activity
+131-->[androidx.compose.ui:ui-tooling-android:1.9.2] /home/aaron/.gradle/caches/9.1.0/transforms/af3f3e87de2dda0b630774d5ce6f3077/transformed/ui-tooling/AndroidManifest.xml:23:9-25:39
+132            android:name="androidx.compose.ui.tooling.PreviewActivity"
+132-->[androidx.compose.ui:ui-tooling-android:1.9.2] /home/aaron/.gradle/caches/9.1.0/transforms/af3f3e87de2dda0b630774d5ce6f3077/transformed/ui-tooling/AndroidManifest.xml:24:13-71
+133            android:exported="true" />
+133-->[androidx.compose.ui:ui-tooling-android:1.9.2] /home/aaron/.gradle/caches/9.1.0/transforms/af3f3e87de2dda0b630774d5ce6f3077/transformed/ui-tooling/AndroidManifest.xml:25:13-36
+134
+135        <service
+135-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:24:9-31:19
+136            android:name="androidx.health.services.client.VersionApiService"
+136-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:25:13-77
+137            android:exported="true"
+137-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:26:13-36
+138            android:permission="com.google.android.wearable.healthservices.permission.PASSIVE_DATA_BINDING" >
+138-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:27:13-108
+139            <intent-filter>
+139-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:28:13-30:29
+140                <action android:name="hs.versionclient.BIND" />
+140-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:29:17-64
+140-->[androidx.health:health-services-client:1.1.0-rc01] /home/aaron/.gradle/caches/9.1.0/transforms/bd99e607f4e8c09f604080f15dfd6b21/transformed/health-services-client-1.1.0-rc01/AndroidManifest.xml:29:25-61
+141            </intent-filter>
+142        </service>
+143
+144        <provider
+144-->[androidx.emoji2:emoji2:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/dcd724cded32ba01e17824d115582b55/transformed/emoji2-1.4.0/AndroidManifest.xml:24:9-32:20
+145            android:name="androidx.startup.InitializationProvider"
+145-->[androidx.emoji2:emoji2:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/dcd724cded32ba01e17824d115582b55/transformed/emoji2-1.4.0/AndroidManifest.xml:25:13-67
+146            android:authorities="com.example.justrun.androidx-startup"
+146-->[androidx.emoji2:emoji2:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/dcd724cded32ba01e17824d115582b55/transformed/emoji2-1.4.0/AndroidManifest.xml:26:13-68
+147            android:exported="false" >
+147-->[androidx.emoji2:emoji2:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/dcd724cded32ba01e17824d115582b55/transformed/emoji2-1.4.0/AndroidManifest.xml:27:13-37
+148            <meta-data
+148-->[androidx.emoji2:emoji2:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/dcd724cded32ba01e17824d115582b55/transformed/emoji2-1.4.0/AndroidManifest.xml:29:13-31:52
+149                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+149-->[androidx.emoji2:emoji2:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/dcd724cded32ba01e17824d115582b55/transformed/emoji2-1.4.0/AndroidManifest.xml:30:17-75
+150                android:value="androidx.startup" />
+150-->[androidx.emoji2:emoji2:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/dcd724cded32ba01e17824d115582b55/transformed/emoji2-1.4.0/AndroidManifest.xml:31:17-49
+151            <meta-data
+151-->[androidx.lifecycle:lifecycle-process:2.10.0] /home/aaron/.gradle/caches/9.1.0/transforms/06f595170a313e296a0bf198214dd6e5/transformed/lifecycle-process-2.10.0/AndroidManifest.xml:29:13-31:52
+152                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+152-->[androidx.lifecycle:lifecycle-process:2.10.0] /home/aaron/.gradle/caches/9.1.0/transforms/06f595170a313e296a0bf198214dd6e5/transformed/lifecycle-process-2.10.0/AndroidManifest.xml:30:17-78
+153                android:value="androidx.startup" />
+153-->[androidx.lifecycle:lifecycle-process:2.10.0] /home/aaron/.gradle/caches/9.1.0/transforms/06f595170a313e296a0bf198214dd6e5/transformed/lifecycle-process-2.10.0/AndroidManifest.xml:31:17-49
+154            <meta-data
+154-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:29:13-31:52
+155                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+155-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:30:17-85
+156                android:value="androidx.startup" />
+156-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:31:17-49
+157        </provider>
+158
+159        <receiver
+159-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:34:9-52:20
+160            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+160-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:35:13-76
+161            android:directBootAware="false"
+161-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:36:13-44
+162            android:enabled="true"
+162-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:37:13-35
+163            android:exported="true"
+163-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:38:13-36
+164            android:permission="android.permission.DUMP" >
+164-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:39:13-57
+165            <intent-filter>
+165-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:40:13-42:29
+166                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+166-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:17-91
+166-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:41:25-88
+167            </intent-filter>
+168            <intent-filter>
+168-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:43:13-45:29
+169                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+169-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:17-85
+169-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:44:25-82
+170            </intent-filter>
+171            <intent-filter>
+171-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:46:13-48:29
+172                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+172-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:17-88
+172-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:47:25-85
+173            </intent-filter>
+174            <intent-filter>
+174-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:49:13-51:29
+175                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+175-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:17-95
+175-->[androidx.profileinstaller:profileinstaller:1.4.0] /home/aaron/.gradle/caches/9.1.0/transforms/8d641bdff761ee0315042dc5bc383e99/transformed/profileinstaller-1.4.0/AndroidManifest.xml:50:25-92
+176            </intent-filter>
+177        </receiver>
+178    </application>
+179
+180</manifest>

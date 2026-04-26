@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="urn:oasis:names:tc:xliff:document:1.2">
+    <string msgid="9020470552698189270" name="autofill">"מילוי אוטומטי"</string>
+    <string msgid="881409763997275156" name="call_notification_answer_action">"מענה"</string>
+    <string msgid="8793775615905189152" name="call_notification_answer_video_action">"וידאו"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"דחייה"</string>
+    <string msgid="2659457946726154263" name="call_notification_hang_up_action">"ניתוק"</string>
+    <string msgid="6107532579223922871" name="call_notification_incoming_text">"שיחה נכנסת"</string>
+    <string msgid="8623827134497363134" name="call_notification_ongoing_text">"שיחה פעילה"</string>
+    <string msgid="59049573811482460" name="call_notification_screening_text">"סינון שיחה נכנסת"</string>
+    <string msgid="406453423630273620" name="close_drawer">"סגירת תפריט הניווט"</string>
+    <string msgid="7573152094250666567" name="close_sheet">"סגירת הגיליון"</string>
+    <string msgid="2523291102206661146" name="common_google_play_services_enable_button">הפעל</string>
+    <string msgid="227660514972886228" name="common_google_play_services_enable_text">‏האפליקציה %1$s לא תפעל אם לא תפעיל את שירותי Google Play.</string>
+    <string msgid="5122002158466380389" name="common_google_play_services_enable_title">‏הפעל את שירותי Google Play</string>
+    <string msgid="7153882981874058840" name="common_google_play_services_install_button">התקן</string>
+    <string name="common_google_play_services_install_text">‏האפליקציה %1$s לא תפעל ללא שירותי Google Play, שאינם מותקנים במכשיר.</string>
+    <string msgid="7215213145546190223" name="common_google_play_services_install_title">‏קבל את שירותי Google Play</string>
+    <string name="common_google_play_services_notification_channel_name">‏זמינות של שירותי Google Play</string>
+    <string name="common_google_play_services_notification_ticker">‏שגיאה בשירותי Google Play</string>
+    <string name="common_google_play_services_unknown_issue">‏%1$s נתקלה בבעיה בשירותי Google Play. נסה שוב.</string>
+    <string name="common_google_play_services_unsupported_text">‏%1$s לא תפעל ללא שירותי Google Play, שאינם נתמכים במכשיר שלך.</string>
+    <string msgid="6556509956452265614" name="common_google_play_services_update_button">עדכון</string>
+    <string msgid="9053896323427875356" name="common_google_play_services_update_text">‏%1$s לא יפעל אם לא תעדכן את שירותי Google Play.</string>
+    <string msgid="6006316683626838685" name="common_google_play_services_update_title">‏עדכון שירותי Google Play</string>
+    <string name="common_google_play_services_updating_text">‏האפליקציה %1$s לא תפעל ללא שירותי Google Play, שמתעדכנים כרגע.</string>
+    <string name="common_google_play_services_wear_update_text">‏דרושה גרסה חדשה של שירותי Google Play. הגרסה תתעדכן בעצמה תוך זמן קצר.</string>
+    <string name="common_open_on_phone">פתח בטלפון</string>
+    <string name="common_signin_button_text">כניסה</string>
+    <string name="common_signin_button_text_long">‏היכנס באמצעות Google</string>
+    <string msgid="8038256446254964252" name="default_error_message">"הקלט לא תקין"</string>
+    <string msgid="6312721426453364202" name="default_popup_window_title">"חלון קופץ"</string>
+    <string msgid="1890207353314751437" name="dropdown_menu">"תפריט נפתח"</string>
+    <string msgid="6827826412747255547" name="in_progress">"בתהליך"</string>
+    <string msgid="7933458017204019916" name="indeterminate">"מסומנת חלקית"</string>
+    <string msgid="2988463736136100848" name="m3c_bottom_sheet_collapse_description">"כיווץ הגיליון התחתון"</string>
+    <string msgid="1555567894577437024" name="m3c_bottom_sheet_dismiss_description">"סגירת הגיליון התחתון"</string>
+    <string msgid="8403354765404029791" name="m3c_bottom_sheet_drag_handle_description">"נקודת אחיזה לגרירה"</string>
+    <string msgid="6670819569745899763" name="m3c_bottom_sheet_expand_description">"הרחבת הגיליון התחתון"</string>
+    <string msgid="3010635850035863127" name="m3c_bottom_sheet_pane_title">"גיליון תחתון"</string>
+    <string msgid="8166741421776570875" name="m3c_date_input_headline">"התאריך שהוזן"</string>
+    <string msgid="229313757840775812" name="m3c_date_input_headline_description">"‏התאריך שהוזן: %1$s"</string>
+    <string msgid="6116910750161463197" name="m3c_date_input_invalid_for_pattern">"‏התאריך לא תואם למבנה הצפוי: %1$s"</string>
+    <string msgid="2521768508935305279" name="m3c_date_input_invalid_not_allowed">"‏תאריך לא מורשה: %1$s"</string>
+    <string msgid="7052898923934555305" name="m3c_date_input_invalid_year_range">"‏התאריך נמצא מחוץ לטווח השנים הצפוי %1$s - %2$s"</string>
+    <string msgid="2895559812010326913" name="m3c_date_input_label">"תאריך"</string>
+    <string msgid="1237013946323089826" name="m3c_date_input_no_input_description">"ללא"</string>
+    <string msgid="7306227249789210568" name="m3c_date_input_title">"בחירת תאריך"</string>
+    <string msgid="7605002211875882969" name="m3c_date_picker_headline">"התאריך הנבחר"</string>
+    <string msgid="3664277305226978227" name="m3c_date_picker_headline_description">"‏הבחירה הנוכחית: %1$s"</string>
+    <string msgid="8436650776581492840" name="m3c_date_picker_navigate_to_year_description">"‏ניווט לשנת %1$s"</string>
+    <string msgid="5811000998184572395" name="m3c_date_picker_no_selection_description">"ללא"</string>
+    <string msgid="7813882352367152251" name="m3c_date_picker_scroll_to_earlier_years">"צריך לגלול כדי להציג את השנים הקודמות"</string>
+    <string msgid="5727367015496556177" name="m3c_date_picker_scroll_to_later_years">"צריך לגלול כדי להציג את השנים המאוחרות"</string>
+    <string msgid="1804346892470238807" name="m3c_date_picker_switch_to_calendar_mode">"מעבר לשיטת קלט של יומן"</string>
+    <string msgid="395627960681594326" name="m3c_date_picker_switch_to_day_selection">"יש להחליק כדי לבחור שנה, או להקיש כדי לחזור לבחירת היום"</string>
+    <string msgid="2219746470065162704" name="m3c_date_picker_switch_to_input_mode">"מעבר לשיטת קלט של טקסט"</string>
+    <string msgid="7142101321095356500" name="m3c_date_picker_switch_to_next_month">"מעבר לחודש הבא"</string>
+    <string msgid="228438865139394590" name="m3c_date_picker_switch_to_previous_month">"מעבר לחודש הקודם"</string>
+    <string msgid="791651718641787594" name="m3c_date_picker_switch_to_year_selection">"החלפה לבחירה של שנה"</string>
+    <string msgid="7430790972741451689" name="m3c_date_picker_title">"בחירת תאריך"</string>
+    <string msgid="3199387177749801575" name="m3c_date_picker_today_description">"היום"</string>
+    <string msgid="2068382232816991922" name="m3c_date_picker_year_picker_pane_title">"בורר השנה גלוי"</string>
+    <string msgid="3190049423327661366" name="m3c_date_range_input_invalid_range_input">"קלט טווח תאריכים לא חוקי"</string>
+    <string msgid="3148384720560189467" name="m3c_date_range_input_title">"הזנת תאריכים"</string>
+    <string msgid="2138321128465719402" name="m3c_date_range_picker_day_in_range">"בטווח"</string>
+    <string msgid="4947636797751277713" name="m3c_date_range_picker_end_headline">"תאריך סיום"</string>
+    <string msgid="602077859540990149" name="m3c_date_range_picker_scroll_to_next_month">"צריך לגלול כדי להציג את החודש הבא"</string>
+    <string msgid="4592174524846109496" name="m3c_date_range_picker_scroll_to_previous_month">"צריך לגלול כדי להציג את החודש הקודם"</string>
+    <string msgid="4665981448952749820" name="m3c_date_range_picker_start_headline">"תאריך התחלה"</string>
+    <string msgid="3134165431120340385" name="m3c_date_range_picker_title">"בחירת תאריכים"</string>
+    <string msgid="7617233117134790350" name="m3c_dialog">"תיבת דו-שיח"</string>
+    <string msgid="3177828188723359358" name="m3c_dropdown_menu_collapsed">"התפריט הנפתח מכווץ"</string>
+    <string msgid="2360841780724299882" name="m3c_dropdown_menu_expanded">"התפריט הנפתח מורחב"</string>
+    <string msgid="8687821690726149911" name="m3c_dropdown_menu_toggle">"החלפת המצב של התפריט הנפתח"</string>
+    <string msgid="6152806324422087846" name="m3c_search_bar_search">"חיפוש"</string>
+    <string msgid="6152755701819882931" name="m3c_snackbar_dismiss">"סגירה"</string>
+    <string msgid="7655536806087401899" name="m3c_suggestions_available">"הצעות מופיעות למטה"</string>
+    <string msgid="2786685010796619560" name="m3c_time_picker_am">"AM"</string>
+    <string msgid="2349193472625211372" name="m3c_time_picker_hour">"שעות"</string>
+    <string msgid="9179527532316922345" name="m3c_time_picker_hour_24h_suffix">"‏%1$d שעות"</string>
+    <string msgid="8876759303332837035" name="m3c_time_picker_hour_selection">"בחירת שעה"</string>
+    <string msgid="3458167507790628988" name="m3c_time_picker_hour_suffix">"%1$d"</string>
+    <string msgid="6973808109666874069" name="m3c_time_picker_hour_text_field">"שעות"</string>
+    <string msgid="4313071914266462005" name="m3c_time_picker_minute">"דקות"</string>
+    <string msgid="4699133535056739733" name="m3c_time_picker_minute_selection">"בחירת דקות"</string>
+    <string msgid="5064177921781937179" name="m3c_time_picker_minute_suffix">"‏%1$d דקות"</string>
+    <string msgid="7661234488295443182" name="m3c_time_picker_minute_text_field">"דקות"</string>
+    <string msgid="5865171949528594571" name="m3c_time_picker_period_toggle_description">"‏צריך לבחור ב-AM או ב-PM"</string>
+    <string msgid="6616362054113087709" name="m3c_time_picker_pm">"PM"</string>
+    <string msgid="1805687647081129904" name="m3c_tooltip_long_press_label">"הצגת הסבר קצר"</string>
+    <string msgid="5460405025248574620" name="m3c_tooltip_pane_description">"הסבר קצר"</string>
+    <string msgid="542007171693138492" name="navigation_menu">"תפריט הניווט"</string>
+    <string msgid="6610465462668679431" name="not_selected">"לא נבחר"</string>
+    <string msgid="5941395253238309765" name="range_end">"סוף הטווח"</string>
+    <string msgid="7097486360902471446" name="range_start">"תחילת הטווח"</string>
+    <string msgid="6043586758067023" name="selected">"נבחר"</string>
+    <string msgid="2792228137354697160" name="snackbar_pane_title">"התראה"</string>
+    <string msgid="4139871816613051306" name="state_empty">"ריק"</string>
+    <string msgid="5834637030682409883" name="state_off">"מצב מושבת"</string>
+    <string msgid="1490883874751719580" name="state_on">"מצב פעיל"</string>
+    <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string msgid="2561197295334830845" name="switch_role">"מתג"</string>
+    <string msgid="1672349317127674378" name="tab">"כרטיסייה"</string>
+    <string msgid="5946805113151406391" name="template_percent">"<ns1:g id="PERCENTAGE">%1$d</ns1:g> אחוזים."</string>
+    <string msgid="3765533235322692011" name="tooltip_description">"הסבר קצר"</string>
+    <string msgid="3124740595719787496" name="tooltip_label">"הצגת ההסבר הקצר"</string>
+</resources>

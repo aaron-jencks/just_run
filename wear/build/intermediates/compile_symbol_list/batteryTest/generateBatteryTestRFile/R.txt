@@ -1,0 +1,7 @@
+int drawable home_banner 0x0
+int drawable ic_launcher_background 0x0
+int drawable ic_launcher_foreground_image 0x0
+int drawable icon_foreground_source 0x0
+int mipmap ic_launcher 0x0
+int mipmap ic_launcher_round 0x0
+int string app_name 0x0
