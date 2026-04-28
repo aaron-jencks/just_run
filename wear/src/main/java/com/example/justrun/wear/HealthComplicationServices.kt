@@ -1,9 +1,12 @@
 package com.example.justrun.wear
 
+import android.graphics.drawable.Icon
 import android.os.Build
+import com.example.justrun.R
 import androidx.wear.watchface.complications.data.ComplicationData
 import androidx.wear.watchface.complications.data.ComplicationType
 import androidx.wear.watchface.complications.data.GoalProgressComplicationData
+import androidx.wear.watchface.complications.data.MonochromaticImage
 import androidx.wear.watchface.complications.data.NoDataComplicationData
 import androidx.wear.watchface.complications.data.PlainComplicationText
 import androidx.wear.watchface.complications.data.RangedValueComplicationData
@@ -12,69 +15,75 @@ import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import kotlin.math.roundToInt
 
-private const val HEART_TITLE = "\u2665"
-
 class DailyStepsComplicationService : SuspendingComplicationDataSourceService() {
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
         WearHealthPassiveMonitor.ensureRegistered(this)
         if (!hasActivityRecognitionPermission(this)) return NoDataComplicationData()
-        val snapshot = WearHealthSnapshotStore.read(this)
+        val snapshot = WearHealthSnapshotStore.readWatchDisplay(this)
         return buildGoalComplication(
             type = request.complicationType,
-            label = "Steps",
+            label = null,
             value = snapshot.dailySteps.toFloat(),
             goal = WearHealthSnapshotStore.stepGoal(snapshot),
-            shortText = formatCompactCount(snapshot.dailySteps.toFloat())
+            shortText = formatCompactCount(snapshot.dailySteps.toFloat()),
+            iconRes = R.drawable.ic_complication_steps
         )
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData? =
-        buildGoalPreview(type = type, label = "Steps", value = 6842f, goal = 10_000f, shortText = "6.8k")
+        buildGoalPreview(type = type, label = null, value = 6842f, goal = 10_000f, shortText = "6.8k", iconRes = R.drawable.ic_complication_steps)
 }
 
 class DailyCaloriesComplicationService : SuspendingComplicationDataSourceService() {
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
         WearHealthPassiveMonitor.ensureRegistered(this)
         if (!hasActivityRecognitionPermission(this)) return NoDataComplicationData()
-        val snapshot = WearHealthSnapshotStore.read(this)
+        val snapshot = WearHealthSnapshotStore.readWatchDisplay(this)
         return buildGoalComplication(
             type = request.complicationType,
-            label = "Calories",
+            label = null,
             value = snapshot.dailyCalories,
             goal = WearHealthSnapshotStore.calorieGoal(snapshot),
-            shortText = snapshot.dailyCalories.roundToInt().toString()
+            shortText = formatCompactCount(snapshot.dailyCalories),
+            iconRes = R.drawable.ic_complication_calories
         )
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData? =
-        buildGoalPreview(type = type, label = "Calories", value = 1240f, goal = 2000f, shortText = "1240")
+        buildGoalPreview(type = type, label = null, value = 1240f, goal = 2000f, shortText = formatCompactCount(1240f), iconRes = R.drawable.ic_complication_calories)
 }
 
 class HeartRateComplicationService : SuspendingComplicationDataSourceService() {
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
         WearHealthPassiveMonitor.ensureRegistered(this)
         if (!hasHeartRatePermission(this)) return NoDataComplicationData()
-        val snapshot = WearHealthSnapshotStore.read(this)
+        val snapshot = WearHealthSnapshotStore.readWatchDisplay(this)
         val heartRate = snapshot.heartRateBpm ?: return NoDataComplicationData()
-        return buildHeartRateComplication(request.complicationType, heartRate)
+        return buildHeartRateComplication(request.complicationType, heartRate, R.drawable.ic_complication_heart)
     }
 
     override fun getPreviewData(type: ComplicationType): ComplicationData? =
-        buildHeartRateComplication(type, 128)
+        buildHeartRateComplication(type, 128, R.drawable.ic_complication_heart)
 }
 
 private fun SuspendingComplicationDataSourceService.buildGoalComplication(
     type: ComplicationType,
-    label: String,
+    label: String?,
     value: Float,
     goal: Float,
-    shortText: String
+    shortText: String,
+    iconRes: Int
 ): ComplicationData = when (type) {
     ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
         text = PlainComplicationText.Builder(shortText).build(),
         contentDescription = PlainComplicationText.Builder("$label $shortText").build()
     )
-        .setTitle(PlainComplicationText.Builder(label).build())
+        .setMonochromaticImage(complicationIcon(iconRes))
+        .apply {
+            if (label != null) {
+                setTitle(PlainComplicationText.Builder(label).build())
+            }
+        }
         .setTapAction(WearHealthSnapshotStore.tapAction(this))
         .build()
     ComplicationType.RANGED_VALUE -> RangedValueComplicationData.Builder(
@@ -84,7 +93,12 @@ private fun SuspendingComplicationDataSourceService.buildGoalComplication(
         PlainComplicationText.Builder("$label $shortText").build()
     )
         .setText(PlainComplicationText.Builder(shortText).build())
-        .setTitle(PlainComplicationText.Builder(label).build())
+        .setMonochromaticImage(complicationIcon(iconRes))
+        .apply {
+            if (label != null) {
+                setTitle(PlainComplicationText.Builder(label).build())
+            }
+        }
         .setTapAction(WearHealthSnapshotStore.tapAction(this))
         .build()
     ComplicationType.GOAL_PROGRESS -> {
@@ -97,7 +111,12 @@ private fun SuspendingComplicationDataSourceService.buildGoalComplication(
                 PlainComplicationText.Builder("$label $shortText").build()
             )
                 .setText(PlainComplicationText.Builder(shortText).build())
-                .setTitle(PlainComplicationText.Builder(label).build())
+                .setMonochromaticImage(complicationIcon(iconRes))
+                .apply {
+                    if (label != null) {
+                        setTitle(PlainComplicationText.Builder(label).build())
+                    }
+                }
                 .setTapAction(WearHealthSnapshotStore.tapAction(this))
                 .build()
         }
@@ -107,29 +126,32 @@ private fun SuspendingComplicationDataSourceService.buildGoalComplication(
 
 private fun DailyStepsComplicationService.buildGoalPreview(
     type: ComplicationType,
-    label: String,
+    label: String?,
     value: Float,
     goal: Float,
-    shortText: String
-): ComplicationData = buildGoalComplication(type, label, value, goal, shortText)
+    shortText: String,
+    iconRes: Int
+): ComplicationData = buildGoalComplication(type, label, value, goal, shortText, iconRes)
 
 private fun DailyCaloriesComplicationService.buildGoalPreview(
     type: ComplicationType,
-    label: String,
+    label: String?,
     value: Float,
     goal: Float,
-    shortText: String
-): ComplicationData = buildGoalComplication(type, label, value, goal, shortText)
+    shortText: String,
+    iconRes: Int
+): ComplicationData = buildGoalComplication(type, label, value, goal, shortText, iconRes)
 
 private fun SuspendingComplicationDataSourceService.buildHeartRateComplication(
     type: ComplicationType,
-    heartRateBpm: Int
+    heartRateBpm: Int,
+    iconRes: Int
 ): ComplicationData = when (type) {
     ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
         text = PlainComplicationText.Builder(heartRateBpm.toString()).build(),
         contentDescription = PlainComplicationText.Builder("$heartRateBpm beats per minute").build()
     )
-        .setTitle(PlainComplicationText.Builder(HEART_TITLE).build())
+        .setMonochromaticImage(complicationIcon(iconRes))
         .setTapAction(WearHealthSnapshotStore.tapAction(this))
         .build()
     ComplicationType.RANGED_VALUE -> {
@@ -141,7 +163,7 @@ private fun SuspendingComplicationDataSourceService.buildHeartRateComplication(
             PlainComplicationText.Builder("$heartRateBpm beats per minute").build()
         )
             .setText(PlainComplicationText.Builder(heartRateBpm.toString()).build())
-            .setTitle(PlainComplicationText.Builder(HEART_TITLE).build())
+            .setMonochromaticImage(complicationIcon(iconRes))
             .setTapAction(WearHealthSnapshotStore.tapAction(this))
             .build()
     }
@@ -154,3 +176,6 @@ internal fun formatCompactCount(value: Float): String {
     val rounded = if (compact >= 10f) compact.roundToInt().toString() else String.format("%.1f", compact)
     return "${rounded.trimEnd('0').trimEnd('.')}k"
 }
+
+private fun SuspendingComplicationDataSourceService.complicationIcon(iconRes: Int): MonochromaticImage =
+    MonochromaticImage.Builder(Icon.createWithResource(this, iconRes)).build()

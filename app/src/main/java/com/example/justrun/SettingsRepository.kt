@@ -22,6 +22,7 @@ class SettingsRepository(context: Context) {
             .putString(KEY_UNIT_SYSTEM, settings.unitSystem.name)
             .putBoolean(KEY_GPS, settings.gpsTrackingEnabled)
             .putBoolean(KEY_HR, settings.heartRateTrackingEnabled)
+            .putBoolean(KEY_BACKGROUND_HR, settings.backgroundHeartMonitoringEnabled)
             .putBoolean(KEY_AUTO_PAUSE, settings.autoPause)
             .putString(KEY_LAP_MODE, settings.lapMode.name)
             .putString(KEY_LAP_TRIGGER, settings.lapTrigger.name)
@@ -65,6 +66,7 @@ class SettingsRepository(context: Context) {
                 ?: UnitSystem.SI,
             gpsTrackingEnabled = gpsEnabled,
             heartRateTrackingEnabled = prefs.getBoolean(KEY_HR, true),
+            backgroundHeartMonitoringEnabled = prefs.getBoolean(KEY_BACKGROUND_HR, true),
             autoPause = sanitizeAutoPause(prefs.getBoolean(KEY_AUTO_PAUSE, true), gpsEnabled),
             lapMode = sanitizeLapMode(
                 prefs.getString(KEY_LAP_MODE, LapMode.AUTOMATIC.name)?.let(LapMode::valueOf) ?: LapMode.AUTOMATIC,
@@ -119,6 +121,7 @@ class SettingsRepository(context: Context) {
         const val KEY_UNIT_SYSTEM = "unit_system"
         const val KEY_GPS = "gps"
         const val KEY_HR = "heart_rate"
+        const val KEY_BACKGROUND_HR = "background_heart_rate"
         const val KEY_AUTO_PAUSE = "auto_pause"
         const val KEY_LAP_MODE = "lap_mode"
         const val KEY_LAP_TRIGGER = "lap_trigger"

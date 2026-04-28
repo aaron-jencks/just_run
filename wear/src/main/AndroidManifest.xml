@@ -4,7 +4,9 @@
     <uses-feature android:name="android.hardware.type.watch" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.BODY_SENSORS" android:maxSdkVersion="35" />
+    <uses-permission android:name="android.permission.BODY_SENSORS_BACKGROUND" android:maxSdkVersion="35" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 
@@ -21,7 +23,7 @@
             android:foregroundServiceType="health" />
         <service
             android:name=".wear.WearPassiveHealthService"
-            android:exported="false" />
+            android:exported="true" />
         <service
             android:name=".wear.WearDataListenerService"
             android:exported="true">

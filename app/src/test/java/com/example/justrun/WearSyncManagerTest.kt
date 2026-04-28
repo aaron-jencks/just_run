@@ -39,7 +39,6 @@ class WearSyncManagerTest {
             )
         )
         val settings = SettingsState(unitSystem = UnitSystem.IMPERIAL)
-
         val snapshot = WearSyncManager.buildWatchSyncState(session, settings)
 
         assertTrue(snapshot.active)

@@ -27,6 +27,7 @@ data class WearRunState(
     val lapCount: Int = 0,
     val gpsEnabled: Boolean = true,
     val heartRateEnabled: Boolean = false,
+    val backgroundHeartMonitoringEnabled: Boolean = true,
     val heartRate: Int? = null,
     val unitSystem: UnitSystem = UnitSystem.SI,
     val goalLabel: String = "",

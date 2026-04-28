@@ -78,8 +78,6 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
     private var voiceCueEnabledMetrics: Set<VoiceCueMetric> = VoiceCueMetric.entries.toSet()
     private var voiceCueTimeIntervalSeconds: Int = DEFAULT_VOICE_CUE_TIME_INTERVAL_SECONDS
     private var voiceCueDistanceIntervalKm: Float = DEFAULT_VOICE_CUE_DISTANCE_INTERVAL_KM
-    private var nextVoiceCueElapsedSeconds: Int = DEFAULT_VOICE_CUE_TIME_INTERVAL_SECONDS
-    private var nextVoiceCueDistanceKm: Float = DEFAULT_VOICE_CUE_DISTANCE_INTERVAL_KM
     private var utteranceSequence: Long = 0L
     private var textToSpeech: TextToSpeech? = null
     private var textToSpeechReady: Boolean = false
@@ -150,7 +148,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                         maybeSpeakLapProgressCue(activeRun, lapIndex)
                     }
                 }
-                maybeSpeakIntervalCue(activeRun)
+                maybeSpeakIntervalCue(previousRun = current, run = activeRun)
                 maybeSpeakTurnAroundCue(activeRun)
                 maybeSpeakTargetReachedCue(activeRun)
                 publishState()
@@ -240,8 +238,6 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
         stationarySinceMillis = null
         turnAroundCueAnnounced = false
         targetReachedCueAnnounced = false
-        nextVoiceCueElapsedSeconds = voiceCueTimeIntervalSeconds
-        nextVoiceCueDistanceKm = voiceCueDistanceIntervalKm
         utteranceSequence = 0L
         recentStepTimestamps.clear()
 
@@ -370,7 +366,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                             maybeSpeakLapProgressCue(activeRun, lapIndex)
                         }
                     }
-                    maybeSpeakIntervalCue(activeRun)
+                    maybeSpeakIntervalCue(previousRun = current, run = activeRun)
                     maybeSpeakTurnAroundCue(activeRun)
                     maybeSpeakTargetReachedCue(activeRun)
                     publishState()
@@ -428,6 +424,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
 
     private fun maybeSpeakTurnAroundCue(run: ActiveRunState?) {
         val current = run ?: return
+        refreshLiveVoiceCueSettings()
         if (!voiceCuesEnabled || turnAroundCueAnnounced || !textToSpeechReady) return
         if (!shouldTriggerTurnAroundCue(current)) return
         speakVoiceCue("Turn around now", TURN_AROUND_UTTERANCE_ID)
@@ -436,6 +433,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
 
     private fun maybeSpeakTargetReachedCue(run: ActiveRunState?) {
         val current = run ?: return
+        refreshLiveVoiceCueSettings()
         if (!voiceCuesEnabled || targetReachedCueAnnounced || !textToSpeechReady) return
         if (!shouldTriggerTargetReachedCue(current)) return
         speakVoiceCue("Target reached", TARGET_REACHED_UTTERANCE_ID)
@@ -448,12 +446,13 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
         textToSpeech?.speak(text, TextToSpeech.QUEUE_ADD, null, "${utteranceId}_$utteranceSequence")
     }
 
-    private fun maybeSpeakIntervalCue(run: ActiveRunState?) {
+    private fun maybeSpeakIntervalCue(previousRun: ActiveRunState, run: ActiveRunState?) {
         val current = run ?: return
+        refreshLiveVoiceCueSettings()
         if (!voiceCuesEnabled || !textToSpeechReady) return
         when (voiceCueIntervalType) {
             VoiceCueIntervalType.TIME -> {
-                if (current.elapsedSeconds < nextVoiceCueElapsedSeconds) return
+                if (!crossedTimeCueBoundary(previousRun.elapsedSeconds, current.elapsedSeconds, voiceCueTimeIntervalSeconds)) return
                 speakProgressCue(
                     current,
                     ProgressCueEvent(
@@ -463,12 +462,9 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                     ),
                     INTERVAL_UTTERANCE_ID
                 )
-                while (current.elapsedSeconds >= nextVoiceCueElapsedSeconds) {
-                    nextVoiceCueElapsedSeconds += voiceCueTimeIntervalSeconds
-                }
             }
             VoiceCueIntervalType.DISTANCE -> {
-                if (!current.gpsEnabled || current.distanceKm < nextVoiceCueDistanceKm) return
+                if (!current.gpsEnabled || !crossedDistanceCueBoundary(previousRun.distanceKm, current.distanceKm, voiceCueDistanceIntervalKm)) return
                 speakProgressCue(
                     current,
                     ProgressCueEvent(
@@ -478,10 +474,6 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                     ),
                     INTERVAL_UTTERANCE_ID
                 )
-                val step = voiceCueDistanceIntervalKm
-                while (current.distanceKm >= nextVoiceCueDistanceKm) {
-                    nextVoiceCueDistanceKm += step
-                }
             }
             VoiceCueIntervalType.LAP -> Unit
         }
@@ -489,6 +481,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
 
     private fun maybeSpeakLapProgressCue(run: ActiveRunState?, lapNumber: Int) {
         val current = run ?: return
+        refreshLiveVoiceCueSettings()
         if (voiceCueIntervalType != VoiceCueIntervalType.LAP) return
         speakProgressCue(
             current,
@@ -522,6 +515,18 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
 
     private fun activeVoiceCueMetrics(): List<VoiceCueMetric> =
         voiceCueMetricOrder.filter { it in voiceCueEnabledMetrics }
+
+    private fun refreshLiveVoiceCueSettings() {
+        val settings = AppGraph.settingsRepository.settings.value
+        voiceCuesEnabled = settings.voiceCues
+        voiceCueIntervalType = settings.voiceCueIntervalType
+        voiceCueTimeIntervalSeconds = sanitizeVoiceCueTimeIntervalSeconds(settings.voiceCueTimeIntervalSeconds)
+        voiceCueDistanceIntervalKm = sanitizeVoiceCueDistanceIntervalKm(settings.voiceCueDistanceIntervalKm)
+        voiceCueLeadIn = settings.voiceCueLeadIn
+        voiceCueMetricOrder = settings.voiceCueMetricOrder
+        voiceCueEnabledMetrics = settings.voiceCueEnabledMetrics.toSet()
+        unitSystem = settings.unitSystem
+    }
 
     private fun maybeRecordAutomaticLaps(): Int {
         var completedLapCount = 0
@@ -754,6 +759,25 @@ internal data class ProgressCueEvent(
     val distanceKm: Float,
     val lapDistanceKm: Float? = null
 )
+
+internal fun crossedTimeCueBoundary(
+    previousElapsedSeconds: Int,
+    currentElapsedSeconds: Int,
+    intervalSeconds: Int
+): Boolean {
+    if (intervalSeconds <= 0) return false
+    return currentElapsedSeconds / intervalSeconds > previousElapsedSeconds / intervalSeconds
+}
+
+internal fun crossedDistanceCueBoundary(
+    previousDistanceKm: Float,
+    currentDistanceKm: Float,
+    intervalDistanceKm: Float
+): Boolean {
+    if (intervalDistanceKm <= 0f) return false
+    return kotlin.math.floor(currentDistanceKm / intervalDistanceKm).toInt() >
+        kotlin.math.floor(previousDistanceKm / intervalDistanceKm).toInt()
+}
 
 internal fun buildProgressCueText(
     run: ActiveRunState,

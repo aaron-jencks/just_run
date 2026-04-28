@@ -1,5 +1,8 @@
 com.example.justrun
 drawable home_banner
+drawable ic_complication_calories
+drawable ic_complication_heart
+drawable ic_complication_steps
 drawable ic_launcher_background
 drawable ic_launcher_foreground_image
 drawable icon_foreground_source

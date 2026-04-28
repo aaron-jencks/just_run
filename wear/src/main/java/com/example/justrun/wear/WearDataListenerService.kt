@@ -11,6 +11,66 @@ import com.google.android.gms.wearable.WearableListenerService
 class WearDataListenerService : WearableListenerService() {
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         dataEvents.forEach { event ->
+            if (event.dataItem.uri.path == PATH_DAILY_ACTIVITY_SETTINGS) {
+                val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+                val current = WearSyncStore.state.value
+                val updated = current.copy(
+                    heartRateEnabled = dataMap.getBoolean(KEY_HEART_RATE_ENABLED, false),
+                    backgroundHeartMonitoringEnabled = dataMap.getBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, true)
+                )
+                if (updated != current) {
+                    WearSyncStore.publish(updated)
+                }
+                WearHealthSnapshotStore.updateConfiguration(
+                    context = applicationContext,
+                    heartRateEnabled = dataMap.getBoolean(KEY_HEART_RATE_ENABLED, false),
+                    backgroundHeartMonitoringEnabled = dataMap.getBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, true),
+                    dailyStepGoal = dataMap.getInt(KEY_DAILY_STEP_GOAL, 5_000),
+                    dailyCalorieGoal = dataMap.getInt(KEY_DAILY_CALORIE_GOAL, 2_000),
+                    weightKg = dataMap.getFloat(KEY_WEIGHT_KG, 72f),
+                    ageYears = dataMap.getFloat(KEY_AGE_YEARS, 31f)
+                )
+                syncHeartRateService()
+                return@forEach
+            }
+            if (event.dataItem.uri.path == PATH_DAILY_ACTIVITY_SYNC) {
+                val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+                val current = WearSyncStore.state.value
+                val updated = current.copy(
+                    heartRateEnabled = dataMap.getBoolean(KEY_HEART_RATE_ENABLED, current.heartRateEnabled),
+                    backgroundHeartMonitoringEnabled = dataMap.getBoolean(
+                        KEY_BACKGROUND_HEART_MONITORING_ENABLED,
+                        current.backgroundHeartMonitoringEnabled
+                    )
+                )
+                if (updated != current) {
+                    WearSyncStore.publish(updated)
+                }
+                WearHealthSnapshotStore.updateConfiguration(
+                    context = applicationContext,
+                    heartRateEnabled = dataMap.getBoolean(KEY_HEART_RATE_ENABLED, false),
+                    backgroundHeartMonitoringEnabled = dataMap.getBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, true),
+                    dailyStepGoal = dataMap.getInt(KEY_DAILY_STEP_GOAL, 5_000),
+                    dailyCalorieGoal = dataMap.getInt(KEY_DAILY_CALORIE_GOAL, 2_000),
+                    weightKg = dataMap.getFloat(KEY_WEIGHT_KG, 72f),
+                    ageYears = dataMap.getFloat(KEY_AGE_YEARS, 31f)
+                )
+                WearHealthSnapshotStore.mergeRemoteSnapshot(
+                    context = applicationContext,
+                    snapshot = WearDailySyncPayload(
+                        dayKey = dataMap.getString(KEY_DAILY_DAY).orEmpty(),
+                        steps = dataMap.getLong(KEY_DAILY_STEPS, 0L),
+                        stepsUpdatedAtMillis = dataMap.getLong(KEY_DAILY_STEPS_UPDATED_AT, 0L),
+                        calories = dataMap.getFloat(KEY_DAILY_CALORIES, 0f),
+                        caloriesUpdatedAtMillis = dataMap.getLong(KEY_DAILY_CALORIES_UPDATED_AT, 0L),
+                        heartRateBpm = dataMap.getInt(KEY_DAILY_HEART_RATE_BPM, -1).takeIf { it > 0 },
+                        heartRateUpdatedAtMillis = dataMap.getLong(KEY_DAILY_HEART_RATE_UPDATED_AT, 0L)
+                    )
+                )
+                syncHeartRateService()
+                WearHealthSnapshotStore.syncCurrentSnapshotToPhone(applicationContext)
+                return@forEach
+            }
             if (event.dataItem.uri.path != PATH_LIVE_RUN) return@forEach
             val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
             WearSyncStore.publish(
@@ -27,16 +87,12 @@ class WearDataListenerService : WearableListenerService() {
                     lapCount = dataMap.getInt(KEY_LAP_COUNT, 0),
                     gpsEnabled = dataMap.getBoolean(KEY_GPS_ENABLED, true),
                     heartRateEnabled = dataMap.getBoolean(KEY_HEART_RATE_ENABLED, false),
+                    backgroundHeartMonitoringEnabled = dataMap.getBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, true),
                     heartRate = dataMap.getInt(KEY_HEART_RATE_BPM, -1).takeIf { it >= 0 },
                     unitSystem = dataMap.getString(KEY_UNIT_SYSTEM)?.let(UnitSystem::valueOf) ?: UnitSystem.SI,
                     goalLabel = dataMap.getString(KEY_GOAL_LABEL).orEmpty(),
                     remainingLabel = dataMap.getString(KEY_REMAINING_LABEL).orEmpty()
                 )
-            )
-            WearHealthSnapshotStore.updateGoals(
-                context = applicationContext,
-                dailyStepGoal = dataMap.getInt(KEY_DAILY_STEP_GOAL, 5_000),
-                dailyCalorieGoal = dataMap.getInt(KEY_DAILY_CALORIE_GOAL, 2_000)
             )
             syncHeartRateService()
         }
@@ -52,7 +108,7 @@ class WearDataListenerService : WearableListenerService() {
 
     private fun syncHeartRateService() {
         val state = WearSyncStore.state.value
-        if (state.active && state.heartRateEnabled && !state.paused && !state.autoPaused) {
+        if (hasDailyActivityPermission(this) || (state.heartRateEnabled && (state.active || state.backgroundHeartMonitoringEnabled))) {
             ContextCompat.startForegroundService(this, Intent(this, WearHeartRateService::class.java))
         } else {
             stopService(Intent(this, WearHeartRateService::class.java))
@@ -61,6 +117,8 @@ class WearDataListenerService : WearableListenerService() {
 }
 
 const val PATH_LIVE_RUN = "/live_run"
+const val PATH_DAILY_ACTIVITY_SYNC = "/daily_activity_sync"
+const val PATH_DAILY_ACTIVITY_SETTINGS = "/daily_activity_settings"
 const val PATH_OPEN_LIVE_RUN = "/open_live_run"
 const val PATH_PAUSE = "/pause"
 const val PATH_RESUME = "/resume"
@@ -81,8 +139,18 @@ const val KEY_CALORIES = "calories"
 const val KEY_LAP_COUNT = "lap_count"
 const val KEY_GPS_ENABLED = "gps_enabled"
 const val KEY_HEART_RATE_ENABLED = "heart_rate_enabled"
+const val KEY_BACKGROUND_HEART_MONITORING_ENABLED = "background_heart_monitoring_enabled"
 const val KEY_HEART_RATE_BPM = "heart_rate_bpm"
 const val KEY_GOAL_LABEL = "goal_label"
 const val KEY_REMAINING_LABEL = "remaining_label"
 const val KEY_DAILY_STEP_GOAL = "daily_step_goal"
 const val KEY_DAILY_CALORIE_GOAL = "daily_calorie_goal"
+const val KEY_DAILY_DAY = "daily_day"
+const val KEY_DAILY_STEPS = "daily_steps"
+const val KEY_DAILY_STEPS_UPDATED_AT = "daily_steps_updated_at"
+const val KEY_DAILY_CALORIES = "daily_calories"
+const val KEY_DAILY_CALORIES_UPDATED_AT = "daily_calories_updated_at"
+const val KEY_DAILY_HEART_RATE_BPM = "daily_heart_rate_bpm"
+const val KEY_DAILY_HEART_RATE_UPDATED_AT = "daily_heart_rate_updated_at"
+const val KEY_WEIGHT_KG = "weight_kg"
+const val KEY_AGE_YEARS = "age_years"

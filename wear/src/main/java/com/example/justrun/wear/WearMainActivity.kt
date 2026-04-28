@@ -50,7 +50,6 @@ import kotlinx.coroutines.launch
 class WearMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WearHealthPassiveMonitor.ensureRegistered(this)
         setContent {
             JustRunWearTheme {
                 Surface(
@@ -58,6 +57,14 @@ class WearMainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val state by WearSyncStore.state.collectAsState()
+                    val dailyActivityPermissionsLauncher = rememberLauncherForActivityResult(
+                        ActivityResultContracts.RequestMultiplePermissions()
+                    ) { grants ->
+                        if (grants.values.all { it }) {
+                            WearHealthPassiveMonitor.ensureRegistered(this@WearMainActivity)
+                            WearHealthSnapshotStore.syncCurrentSnapshotToPhone(this@WearMainActivity)
+                        }
+                    }
                     val permissionsLauncher = rememberLauncherForActivityResult(
                         ActivityResultContracts.RequestMultiplePermissions()
                     ) { grants ->
@@ -66,6 +73,19 @@ class WearMainActivity : ComponentActivity() {
                                 this@WearMainActivity,
                                 Intent(this@WearMainActivity, WearHeartRateService::class.java)
                             )
+                        }
+                    }
+                    LaunchedEffect(Unit) {
+                        if (!hasDailyActivityPermission(this@WearMainActivity)) {
+                            dailyActivityPermissionsLauncher.launch(requiredDailyActivityPermissions())
+                        } else {
+                            WearHealthPassiveMonitor.ensureRegistered(this@WearMainActivity)
+                            WearHealthSnapshotStore.syncCurrentSnapshotToPhone(this@WearMainActivity)
+                        }
+                        if (!hasHeartRatePermission(this@WearMainActivity)) {
+                            permissionsLauncher.launch(requiredHeartRatePermissions())
+                        } else {
+                            syncHeartRateServiceState()
                         }
                     }
                     LaunchedEffect(state.active, state.heartRateEnabled, state.paused, state.autoPaused) {
@@ -77,6 +97,8 @@ class WearMainActivity : ComponentActivity() {
                             !hasHeartRatePermission(this@WearMainActivity)
                         ) {
                             permissionsLauncher.launch(requiredHeartRatePermissions())
+                        } else {
+                            syncHeartRateServiceState()
                         }
                     }
                     WearRunScreen(
@@ -96,6 +118,22 @@ class WearMainActivity : ComponentActivity() {
             nodes.forEach { node ->
                 runCatching { Tasks.await(Wearable.getMessageClient(applicationContext).sendMessage(node.id, path, ByteArray(0))) }
             }
+        }
+    }
+
+    private fun syncHeartRateServiceState() {
+        val state = WearSyncStore.state.value
+        val config = WearHealthSnapshotStore.readMonitoringConfig(this)
+        val shouldRun = hasDailyActivityPermission(this) || (
+            hasHeartRatePermission(this) &&
+                config.heartRateEnabled &&
+                (state.active || config.backgroundHeartMonitoringEnabled)
+            )
+        val serviceIntent = Intent(this, WearHeartRateService::class.java)
+        if (shouldRun) {
+            ContextCompat.startForegroundService(this, serviceIntent)
+        } else {
+            stopService(serviceIntent)
         }
     }
 }

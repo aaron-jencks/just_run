@@ -22,6 +22,7 @@ enum class DailyWidgetVariant {
 object DailyActivityWidgetUpdater {
     fun updateAll(context: Context) {
         AppGraph.init(context)
+        AppGraph.dailyActivityRepository.startMonitoring()
         val widgetManager = AppWidgetManager.getInstance(context)
         updateComponent(context, widgetManager, StepsProgressWidgetProvider::class.java, DailyMetricType.STEPS, DailyWidgetVariant.PROGRESS)
         updateComponent(context, widgetManager, StepsTextWidgetProvider::class.java, DailyMetricType.STEPS, DailyWidgetVariant.TEXT)
@@ -50,6 +51,7 @@ object DailyActivityWidgetUpdater {
         variant: DailyWidgetVariant
     ): RemoteViews {
         AppGraph.init(context)
+        AppGraph.dailyActivityRepository.startMonitoring()
         val settings = AppGraph.settingsRepository.settings.value
         val snapshot = AppGraph.dailyActivityRepository.snapshot.value
         val layoutId = when (variant) {

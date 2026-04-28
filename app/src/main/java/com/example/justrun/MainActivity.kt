@@ -58,6 +58,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -71,12 +72,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -94,14 +97,20 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.focus.onFocusChanged
 import kotlinx.coroutines.delay
 import com.example.justrun.ui.theme.JustRunTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.max
 import kotlin.math.asin
 import kotlin.math.cos
@@ -138,6 +147,7 @@ private fun JustRunApp() {
     val settings by AppGraph.settingsRepository.settings.collectAsState()
     val runHistory by AppGraph.runRepository.runs.collectAsState()
     val trackingSession by AppGraph.trackingController.trackingSession.collectAsState()
+    val dailyActivity by AppGraph.dailyActivityRepository.snapshot.collectAsState()
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var selectedRunId by remember { mutableStateOf(runHistory.firstOrNull()?.id ?: 0) }
     var runSetup by remember {
@@ -157,6 +167,13 @@ private fun JustRunApp() {
             screen = AppScreen.RUNNING
         }
         pendingStart = false
+    }
+    val dailyActivityPermissionsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.all { it }) {
+            AppGraph.dailyActivityRepository.startMonitoring()
+        }
     }
     val importGpxLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -202,6 +219,14 @@ private fun JustRunApp() {
         if (activeRun != null) screen = AppScreen.RUNNING
     }
 
+    LaunchedEffect(Unit) {
+        if (!hasActivityRecognitionPermission(context)) {
+            dailyActivityPermissionsLauncher.launch(dailyActivityPermissions())
+        } else {
+            AppGraph.dailyActivityRepository.startMonitoring()
+        }
+    }
+
     LaunchedEffect(trackingSession.completedRunId, runHistory) {
         val completedRunId = trackingSession.completedRunId ?: return@LaunchedEffect
         if (runHistory.any { it.id == completedRunId }) {
@@ -220,6 +245,8 @@ private fun JustRunApp() {
             AppScreen.HOME -> HomeScreen(
                 runs = runHistory,
                 unitSystem = settings.unitSystem,
+                dailyActivity = dailyActivity,
+                dailyStepGoal = settings.dailyStepGoal,
                 capabilities = TrackingCapabilities(
                     gpsEnabled = settings.gpsTrackingEnabled,
                     heartRateEnabled = settings.heartRateTrackingEnabled,
@@ -327,6 +354,8 @@ private fun JustRunApp() {
 private fun HomeScreen(
     runs: List<RunRecord>,
     unitSystem: UnitSystem,
+    dailyActivity: DailyActivitySnapshot,
+    dailyStepGoal: Int,
     capabilities: TrackingCapabilities,
     activeRun: ActiveRunState?,
     onOpenSettings: () -> Unit,
@@ -389,6 +418,12 @@ private fun HomeScreen(
                     unitSystem = unitSystem,
                     capabilities = capabilities,
                     runs = runs
+                )
+            }
+            item {
+                DailyStepsCard(
+                    snapshot = dailyActivity,
+                    stepGoal = dailyStepGoal
                 )
             }
             if (!capabilities.gpsEnabled || !capabilities.heartRateEnabled) {
@@ -519,6 +554,80 @@ private fun QuickStatusCard(
                 value = if (capabilities.heartRateEnabled) "On" else runs.size.toString(),
                 modifier = Modifier.weight(1f)
             )
+        }
+    }
+}
+
+@Composable
+private fun DailyStepsCard(
+    snapshot: DailyActivitySnapshot,
+    stepGoal: Int
+) {
+    val totalSteps = snapshot.steps
+    val progress = remember(totalSteps, stepGoal) {
+        progressCycle(totalSteps.toFloat(), stepGoal.toFloat())
+    }
+    val syncedLabel = remember(snapshot.updatedAtMillis) {
+        when {
+            snapshot.updatedAtMillis <= 0L -> "Waiting for step sensor"
+            else -> "Updated ${formatShortTime(snapshot.updatedAtMillis)}"
+        }
+    }
+
+    Card(shape = RoundedCornerShape(24.dp)) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "Daily Steps",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        syncedLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    "${formatWholeNumber(totalSteps)} / ${formatWholeNumber(stepGoal.toLong())}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            LinearProgressIndicator(
+                progress = { progress / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(999.dp)),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MetricPill(
+                    label = "Today",
+                    value = formatWholeNumber(totalSteps),
+                    modifier = Modifier.weight(1f)
+                )
+                MetricPill(
+                    label = "Goal",
+                    value = formatWholeNumber(stepGoal.toLong()),
+                    modifier = Modifier.weight(1f)
+                )
+                MetricPill(
+                    label = "Cycle",
+                    value = "$progress%",
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
@@ -677,6 +786,13 @@ private fun SettingsScreen(
                 subtitle = "Collect heart-rate data when the device or watch can provide it.",
                 checked = settings.heartRateTrackingEnabled,
                 onCheckedChange = { onSettingsChanged(settings.copy(heartRateTrackingEnabled = it)) }
+            )
+            ToggleCard(
+                title = "Background heart checks",
+                subtitle = "Measure heart rate on the watch outside workouts at a lower update rate.",
+                checked = settings.backgroundHeartMonitoringEnabled,
+                enabled = settings.heartRateTrackingEnabled,
+                onCheckedChange = { onSettingsChanged(settings.copy(backgroundHeartMonitoringEnabled = it)) }
             )
             Card(shape = RoundedCornerShape(24.dp)) {
                 Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1511,6 +1627,21 @@ private fun HistoryChip(text: String, modifier: Modifier = Modifier) {
     }
 }
 
+private fun progressCycle(totalValue: Float, goalValue: Float): Int {
+    if (goalValue <= 0f) return 0
+    val remainder = totalValue % goalValue
+    return when {
+        totalValue <= 0f -> 0
+        remainder == 0f -> 100
+        else -> ((remainder / goalValue) * 100f).toInt().coerceIn(0, 100)
+    }
+}
+
+private fun formatWholeNumber(value: Long): String = "%,d".format(Locale.US, value)
+
+private fun formatShortTime(timestampMillis: Long): String =
+    SimpleDateFormat("h:mm a", Locale.US).format(Date(timestampMillis))
+
 @Composable
 private fun NumericSettingField(
     label: String,
@@ -1519,24 +1650,52 @@ private fun NumericSettingField(
     allowDecimal: Boolean,
     onValueCommitted: (Float) -> Unit
 ) {
-    var inputText by remember(label, suffix) { mutableStateOf(formatSettingNumber(value, allowDecimal)) }
+    val formattedValue = formatSettingNumber(value, allowDecimal)
+    var fieldValue by remember(label, suffix) {
+        mutableStateOf(TextFieldValue(formattedValue))
+    }
+    var isFocused by remember(label, suffix) { mutableStateOf(false) }
 
-    LaunchedEffect(value, allowDecimal) {
-        val parsed = inputText.toFloatOrNull()
-        if (parsed == null || kotlin.math.abs(parsed - value) > if (allowDecimal) 0.05f else 0.5f) {
-            inputText = formatSettingNumber(value, allowDecimal)
+    LaunchedEffect(formattedValue, allowDecimal, isFocused) {
+        if (!isFocused && fieldValue.text != formattedValue) {
+            fieldValue = TextFieldValue(formattedValue)
+        }
+    }
+
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            withFrameNanos { }
+            fieldValue = fieldValue.copy(selection = TextRange(0, fieldValue.text.length))
+        }
+    }
+
+    fun commitCurrentValue() {
+        val parsed = fieldValue.text.toFloatOrNull()
+        if (parsed != null) {
+            onValueCommitted(parsed)
         }
     }
 
     OutlinedTextField(
-        value = inputText,
+        value = fieldValue,
         onValueChange = { newValue ->
-            if (newValue.all { it.isDigit() || (allowDecimal && it == '.') }) {
-                inputText = newValue
-                newValue.toFloatOrNull()?.let(onValueCommitted)
+            if (newValue.text.all { it.isDigit() || (allowDecimal && it == '.') }) {
+                fieldValue = newValue
+                val parsed = newValue.text.toFloatOrNull()
+                if (parsed != null) {
+                    onValueCommitted(parsed)
+                }
             }
         },
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { focusState ->
+                if (focusState.isFocused && !isFocused) {
+                    isFocused = true
+                } else if (!focusState.isFocused && isFocused) {
+                    isFocused = false
+                }
+            },
         shape = RoundedCornerShape(20.dp),
         singleLine = true,
         label = { Text(label) },
@@ -1566,17 +1725,35 @@ private fun HeightSettingField(
     val totalInches = heightForDisplay(heightCm, UnitSystem.IMPERIAL).toInt().coerceIn(51, 87)
     val initialFeet = totalInches / 12
     val initialInches = totalInches % 12
-    var feetText by remember(label, unitSystem) { mutableStateOf(initialFeet.toString()) }
-    var inchesText by remember(label, unitSystem) { mutableStateOf(initialInches.toString()) }
+    var feetField by remember(label, unitSystem) { mutableStateOf(TextFieldValue(initialFeet.toString())) }
+    var inchesField by remember(label, unitSystem) { mutableStateOf(TextFieldValue(initialInches.toString())) }
+    var feetFocused by remember(label, unitSystem) { mutableStateOf(false) }
+    var inchesFocused by remember(label, unitSystem) { mutableStateOf(false) }
 
     LaunchedEffect(heightCm, unitSystem) {
-        val currentFeet = feetText.toIntOrNull()
-        val currentInches = inchesText.toIntOrNull()
-        if (currentFeet != initialFeet) feetText = initialFeet.toString()
-        if (currentInches != initialInches) inchesText = initialInches.toString()
+        if (!feetFocused && feetField.text != initialFeet.toString()) {
+            feetField = TextFieldValue(initialFeet.toString())
+        }
+        if (!inchesFocused && inchesField.text != initialInches.toString()) {
+            inchesField = TextFieldValue(initialInches.toString())
+        }
     }
 
-    fun commitHeight(nextFeet: String = feetText, nextInches: String = inchesText) {
+    LaunchedEffect(feetFocused) {
+        if (feetFocused) {
+            withFrameNanos { }
+            feetField = feetField.copy(selection = TextRange(0, feetField.text.length))
+        }
+    }
+
+    LaunchedEffect(inchesFocused) {
+        if (inchesFocused) {
+            withFrameNanos { }
+            inchesField = inchesField.copy(selection = TextRange(0, inchesField.text.length))
+        }
+    }
+
+    fun commitHeight(nextFeet: String = feetField.text, nextInches: String = inchesField.text) {
         val feet = nextFeet.toIntOrNull() ?: return
         val inches = nextInches.toIntOrNull() ?: return
         val normalizedFeet = feet.coerceIn(4, 7)
@@ -1589,14 +1766,22 @@ private fun HeightSettingField(
         Text(label, fontWeight = FontWeight.SemiBold)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             OutlinedTextField(
-                value = feetText,
+                value = feetField,
                 onValueChange = { newValue ->
-                    if (newValue.all(Char::isDigit)) {
-                        feetText = newValue
-                        commitHeight(nextFeet = newValue)
+                    if (newValue.text.all(Char::isDigit)) {
+                        feetField = newValue
+                        commitHeight(nextFeet = newValue.text)
                     }
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused && !feetFocused) {
+                            feetFocused = true
+                        } else if (!focusState.isFocused && feetFocused) {
+                            feetFocused = false
+                        }
+                    },
                 shape = RoundedCornerShape(20.dp),
                 singleLine = true,
                 label = { Text("Feet") },
@@ -1604,14 +1789,22 @@ private fun HeightSettingField(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
             OutlinedTextField(
-                value = inchesText,
+                value = inchesField,
                 onValueChange = { newValue ->
-                    if (newValue.all(Char::isDigit)) {
-                        inchesText = newValue
-                        commitHeight(nextInches = newValue)
+                    if (newValue.text.all(Char::isDigit)) {
+                        inchesField = newValue
+                        commitHeight(nextInches = newValue.text)
                     }
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused && !inchesFocused) {
+                            inchesFocused = true
+                        } else if (!focusState.isFocused && inchesFocused) {
+                            inchesFocused = false
+                        }
+                    },
                 shape = RoundedCornerShape(20.dp),
                 singleLine = true,
                 label = { Text("Inches") },
@@ -1756,12 +1949,28 @@ private fun DistanceIntervalPickerCard(
     val unitLabel = if (unitSystem == UnitSystem.SI) "km" else "mi"
     val displayDistance = distanceInDisplayUnits(distanceKm, unitSystem)
     val maxDisplay = if (unitSystem == UnitSystem.SI) 160.9f else 100f
-    var inputText by remember(unitSystem) { mutableStateOf(formatDistanceNumber(displayDistance)) }
+    val formattedDistance = formatDistanceNumber(displayDistance)
+    var fieldValue by remember(unitSystem) { mutableStateOf(TextFieldValue(formattedDistance)) }
+    var isFocused by remember(unitSystem) { mutableStateOf(false) }
 
-    LaunchedEffect(displayDistance, unitSystem) {
-        val parsed = inputText.toFloatOrNull()
-        if (parsed == null || kotlin.math.abs(parsed - displayDistance) > 0.05f) {
-            inputText = formatDistanceNumber(displayDistance)
+    LaunchedEffect(formattedDistance, unitSystem, isFocused) {
+        if (!isFocused && fieldValue.text != formattedDistance) {
+            fieldValue = TextFieldValue(formattedDistance)
+        }
+    }
+
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            withFrameNanos { }
+            fieldValue = fieldValue.copy(selection = TextRange(0, fieldValue.text.length))
+        }
+    }
+
+    fun commitDistance() {
+        val parsed = fieldValue.text.toFloatOrNull()
+        if (parsed != null) {
+            val clamped = parsed.coerceIn(0f, maxDisplay)
+            onValueChange(distanceDisplayToKm(clamped, unitSystem))
         }
     }
 
@@ -1770,17 +1979,26 @@ private fun DistanceIntervalPickerCard(
             Text(label, fontWeight = FontWeight.SemiBold)
             Text(helperText, color = MaterialTheme.colorScheme.onSurfaceVariant)
             OutlinedTextField(
-                value = inputText,
+                value = fieldValue,
                 onValueChange = { newValue ->
-                    if (newValue.all { it.isDigit() || it == '.' }) {
-                        inputText = newValue
-                        newValue.toFloatOrNull()?.let { parsed ->
+                    if (newValue.text.all { it.isDigit() || it == '.' }) {
+                        fieldValue = newValue
+                        val parsed = newValue.text.toFloatOrNull()
+                        if (parsed != null) {
                             val clamped = parsed.coerceIn(0f, maxDisplay)
                             onValueChange(distanceDisplayToKm(clamped, unitSystem))
                         }
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused && !isFocused) {
+                            isFocused = true
+                        } else if (!focusState.isFocused && isFocused) {
+                            isFocused = false
+                        }
+                    },
                 shape = RoundedCornerShape(20.dp),
                 singleLine = true,
                 suffix = { Text(unitLabel) },
@@ -2226,6 +2444,17 @@ private fun formatDurationSeconds(totalSeconds: Int): String {
 private fun hasLocationPermissions(context: android.content.Context): Boolean =
     ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+private fun hasActivityRecognitionPermission(context: android.content.Context): Boolean =
+    android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q ||
+        ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
+
+private fun dailyActivityPermissions(): Array<String> =
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+        arrayOf(android.Manifest.permission.ACTIVITY_RECOGNITION)
+    } else {
+        emptyArray()
+    }
 
 private fun runStartPermissions(context: android.content.Context): Array<String> {
     val permissions = mutableListOf(

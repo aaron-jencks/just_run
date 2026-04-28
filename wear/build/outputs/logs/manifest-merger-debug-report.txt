@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:2:1-93:12
-INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:2:1-93:12
-INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:2:1-93:12
-INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:2:1-93:12
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:2:1-95:12
+INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:2:1-95:12
+INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:2:1-95:12
+INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:2:1-95:12
 MERGED from [com.google.android.gms:play-services-wearable:19.0.0] /home/aaron/.gradle/caches/9.1.0/transforms/347da9f1ebb3229a2f23b71ef99d0f9e/transformed/play-services-wearable-19.0.0/AndroidManifest.xml:17:1-24:12
 MERGED from [com.google.android.gms:play-services-base:18.5.0] /home/aaron/.gradle/caches/9.1.0/transforms/524d68c46b31d190d2af13ed26ec4d5d/transformed/play-services-base-18.5.0/AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.gms:play-services-tasks:18.2.0] /home/aaron/.gradle/caches/9.1.0/transforms/638eb157d117e846ab3d75a95fc39eed/transformed/play-services-tasks-18.2.0/AndroidManifest.xml:2:1-5:12
@@ -111,21 +111,31 @@ ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:6:5-98
 		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:6:69-95
 	android:name
 		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:6:22-68
+uses-permission#android.permission.BODY_SENSORS_BACKGROUND
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:7:5-109
+	android:maxSdkVersion
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:7:80-106
+	android:name
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:7:22-79
 uses-permission#android.permission.health.READ_HEART_RATE
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:7:5-81
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:8:5-81
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:7:22-78
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:8:22-78
+uses-permission#android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:9:5-96
+	android:name
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:9:22-93
 uses-permission#android.permission.FOREGROUND_SERVICE
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:8:5-77
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:10:5-77
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:8:22-74
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:10:22-74
 uses-permission#android.permission.FOREGROUND_SERVICE_HEALTH
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:9:5-84
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:11:5-84
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:9:22-81
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:11:22-81
 application
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:11:5-91:19
-INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:11:5-91:19
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:13:5-93:19
+INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:13:5-93:19
 MERGED from [com.google.android.gms:play-services-wearable:19.0.0] /home/aaron/.gradle/caches/9.1.0/transforms/347da9f1ebb3229a2f23b71ef99d0f9e/transformed/play-services-wearable-19.0.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.gms:play-services-wearable:19.0.0] /home/aaron/.gradle/caches/9.1.0/transforms/347da9f1ebb3229a2f23b71ef99d0f9e/transformed/play-services-wearable-19.0.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.gms:play-services-base:18.5.0] /home/aaron/.gradle/caches/9.1.0/transforms/524d68c46b31d190d2af13ed26ec4d5d/transformed/play-services-base-18.5.0/AndroidManifest.xml:4:5-6:19
@@ -161,117 +171,117 @@ MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/aaron
 	android:appComponentFactory
 		ADDED from [androidx.core:core:1.17.0] /home/aaron/.gradle/caches/9.1.0/transforms/c4c03262979b2cfdbcb8c6bbd426537c/transformed/core-1.17.0/AndroidManifest.xml:28:18-86
 	android:supportsRtl
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:16:9-35
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:18:9-35
 	android:label
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:14:9-41
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:16:9-41
 	android:roundIcon
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:15:9-54
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:17:9-54
 	android:icon
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:13:9-43
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:15:9-43
 	android:allowBackup
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:12:9-35
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:14:9-35
 	android:theme
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:17:9-59
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:19:9-59
 service#com.example.justrun.wear.WearHeartRateService
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:18:9-21:54
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:20:9-23:54
 	android:exported
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:20:13-37
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:22:13-37
 	android:foregroundServiceType
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:21:13-51
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:23:13-51
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:19:13-54
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:21:13-54
 service#com.example.justrun.wear.WearPassiveHealthService
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:22:9-24:40
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:24:9-26:39
 	android:exported
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:24:13-37
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:26:13-36
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:23:13-58
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:25:13-58
 service#com.example.justrun.wear.WearDataListenerService
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:25:9-31:19
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:27:9-33:19
 	android:exported
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:27:13-36
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:29:13-36
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:26:13-57
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:28:13-57
 intent-filter#action:name:com.google.android.gms.wearable.BIND_LISTENER
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:28:13-30:29
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:30:13-32:29
 action#com.google.android.gms.wearable.BIND_LISTENER
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:29:17-88
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:31:17-88
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:29:25-85
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:31:25-85
 service#com.example.justrun.wear.DailyStepsComplicationService
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:32:9-47:19
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:34:9-49:19
 	android:label
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:35:13-60
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:37:13-60
 	android:exported
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:34:13-36
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:36:13-36
 	android:permission
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:37:13-99
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:39:13-99
 	android:icon
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:36:13-53
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:38:13-53
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:33:13-63
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:35:13-63
 intent-filter#action:name:android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:38:13-40:29
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:40:13-42:29
 action#android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:39:17-116
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:41:17-116
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:39:25-113
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:41:25-113
 meta-data#android.support.wearable.complications.SUPPORTED_TYPES
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:41:13-43:73
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:43:13-45:73
 	android:value
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:43:17-70
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:45:17-70
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:42:17-86
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:44:17-86
 meta-data#android.support.wearable.complications.UPDATE_PERIOD_SECONDS
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:44:13-46:37
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:46:13-48:37
 	android:value
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:46:17-34
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:48:17-34
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:45:17-92
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:47:17-92
 service#com.example.justrun.wear.DailyCaloriesComplicationService
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:48:9-63:19
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:50:9-65:19
 	android:label
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:51:13-63
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:53:13-63
 	android:exported
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:50:13-36
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:52:13-36
 	android:permission
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:53:13-99
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:55:13-99
 	android:icon
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:52:13-53
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:54:13-53
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:49:13-66
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:51:13-66
 service#com.example.justrun.wear.HeartRateComplicationService
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:64:9-79:19
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:66:9-81:19
 	android:label
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:67:13-65
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:69:13-65
 	android:exported
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:66:13-36
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:68:13-36
 	android:permission
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:69:13-99
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:71:13-99
 	android:icon
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:68:13-53
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:70:13-53
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:65:13-62
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:67:13-62
 activity#com.example.justrun.wear.WearMainActivity
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:81:9-90:20
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:83:9-92:20
 	android:label
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:84:13-45
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:86:13-45
 	android:exported
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:83:13-36
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:85:13-36
 	android:theme
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:85:13-63
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:87:13-63
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:82:13-50
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:84:13-50
 intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:86:13-89:29
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:88:13-91:29
 action#android.intent.action.MAIN
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:87:17-69
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:89:17-69
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:87:25-66
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:89:25-66
 category#android.intent.category.LAUNCHER
-ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:88:17-77
+ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:90:17-77
 	android:name
-		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:88:27-74
+		ADDED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml:90:27-74
 uses-sdk
 INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /workspace/github/just_run/wear/src/main/AndroidManifest.xml

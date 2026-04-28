@@ -24,6 +24,6 @@
       type="MAIN"
       applicationId="com.example.justrun"
       generatedSourceFolders="build/generated/ap_generated_sources/batteryTest/out"
-      desugaredMethodsFiles="/home/aaron/.gradle/caches/9.1.0/transforms/bbed96fdad0106b1657d347bc37a0d43/transformed/D8BackportedDesugaredMethods.txt">
+      desugaredMethodsFiles="/home/aaron/.gradle/caches/9.1.0/transforms/be72d343582ee4d7ce1b17351da266a9/transformed/D8BackportedDesugaredMethods.txt">
   </artifact>
 </variant>

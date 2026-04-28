@@ -7,6 +7,7 @@ data class SettingsState(
     val unitSystem: UnitSystem = UnitSystem.SI,
     val gpsTrackingEnabled: Boolean = true,
     val heartRateTrackingEnabled: Boolean = true,
+    val backgroundHeartMonitoringEnabled: Boolean = true,
     val autoPause: Boolean = true,
     val lapMode: LapMode = LapMode.AUTOMATIC,
     val lapTrigger: LapTrigger = LapTrigger.DISTANCE,

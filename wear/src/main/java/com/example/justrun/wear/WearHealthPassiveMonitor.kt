@@ -8,14 +8,12 @@ import androidx.health.services.client.data.PassiveListenerConfig
 
 object WearHealthPassiveMonitor {
     fun ensureRegistered(context: Context) {
-        if (!hasActivityRecognitionPermission(context)) return
         val dataTypes = buildSet {
-            add(DataType.STEPS_DAILY)
-            add(DataType.CALORIES_DAILY)
             if (hasHeartRatePermission(context)) {
                 add(DataType.HEART_RATE_BPM)
             }
         }
+        if (dataTypes.isEmpty()) return
         val config = PassiveListenerConfig.builder()
             .setDataTypes(dataTypes)
             .build()

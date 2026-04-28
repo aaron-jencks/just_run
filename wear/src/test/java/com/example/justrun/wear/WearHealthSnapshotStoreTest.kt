@@ -17,4 +17,17 @@ class WearHealthSnapshotStoreTest {
         assertEquals(5_000f, WearHealthSnapshotStore.stepGoal(snapshot))
         assertEquals(2_000f, WearHealthSnapshotStore.calorieGoal(snapshot))
     }
+
+    @Test
+    fun `background heart interval backs off when bpm is stable and resets on jumps`() {
+        val tracker = BackgroundHeartRateCadenceTracker()
+
+        assertEquals(5_000L, tracker.updateAndGetInterval(80))
+        assertEquals(5_000L, tracker.updateAndGetInterval(81))
+        assertEquals(10_000L, tracker.updateAndGetInterval(80))
+        assertEquals(10_000L, tracker.updateAndGetInterval(81))
+        assertEquals(20_000L, tracker.updateAndGetInterval(80))
+        assertEquals(5_000L, tracker.updateAndGetInterval(89))
+        assertEquals(10_000L, tracker.updateAndGetInterval(85))
+    }
 }

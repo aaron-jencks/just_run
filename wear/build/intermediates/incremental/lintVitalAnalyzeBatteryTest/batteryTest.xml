@@ -6,7 +6,7 @@
     mergedManifest="build/intermediates/merged_manifest/batteryTest/processBatteryTestMainManifest/AndroidManifest.xml"
     proguardFiles="build/intermediates/default_proguard_files/global/proguard-android-optimize.txt-9.0.1:proguard-rules.pro"
     partialResultsDir="build/intermediates/lint_vital_partial_results/batteryTest/lintVitalAnalyzeBatteryTest/out"
-    desugaredMethodsFiles="/home/aaron/.gradle/caches/9.1.0/transforms/bbed96fdad0106b1657d347bc37a0d43/transformed/D8BackportedDesugaredMethods.txt">
+    desugaredMethodsFiles="/home/aaron/.gradle/caches/9.1.0/transforms/be72d343582ee4d7ce1b17351da266a9/transformed/D8BackportedDesugaredMethods.txt">
   <buildFeatures/>
   <sourceProviders>
     <sourceProvider
@@ -24,6 +24,6 @@
       type="MAIN"
       applicationId="com.example.justrun"
       generatedSourceFolders="build/generated/ap_generated_sources/batteryTest/out"
-      desugaredMethodsFiles="/home/aaron/.gradle/caches/9.1.0/transforms/bbed96fdad0106b1657d347bc37a0d43/transformed/D8BackportedDesugaredMethods.txt">
+      desugaredMethodsFiles="/home/aaron/.gradle/caches/9.1.0/transforms/be72d343582ee4d7ce1b17351da266a9/transformed/D8BackportedDesugaredMethods.txt">
   </artifact>
 </variant>

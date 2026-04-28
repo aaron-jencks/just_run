@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.example.justrun.wear.WearHealthSnapshotStoreTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-04-26T01:02:01.476Z" hostname="aaron-home-desktop" time="0.037">
+<testsuite name="com.example.justrun.wear.WearHealthSnapshotStoreTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-04-28T13:06:48.181Z" hostname="aaron-home-desktop" time="0.034">
   <properties/>
-  <testcase name="daily goals default to ten thousand steps and two thousand calories" classname="com.example.justrun.wear.WearHealthSnapshotStoreTest" time="0.017"/>
-  <testcase name="compact count formats small and large values cleanly" classname="com.example.justrun.wear.WearHealthSnapshotStoreTest" time="0.019"/>
+  <testcase name="daily goals default to ten thousand steps and two thousand calories" classname="com.example.justrun.wear.WearHealthSnapshotStoreTest" time="0.016"/>
+  <testcase name="compact count formats small and large values cleanly" classname="com.example.justrun.wear.WearHealthSnapshotStoreTest" time="0.013"/>
+  <testcase name="background heart interval backs off when bpm is stable and resets on jumps" classname="com.example.justrun.wear.WearHealthSnapshotStoreTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

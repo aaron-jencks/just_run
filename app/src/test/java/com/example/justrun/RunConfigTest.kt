@@ -7,9 +7,15 @@ import com.example.justrun.tracking.estimatedMetFromHeartRate
 import com.example.justrun.tracking.buildVoiceCueMetricReport
 import com.example.justrun.tracking.buildProgressCueText
 import com.example.justrun.tracking.calculateCadenceSpm
+import com.example.justrun.tracking.crossedDistanceCueBoundary
+import com.example.justrun.tracking.crossedTimeCueBoundary
 import com.example.justrun.tracking.isMovementSample
 import com.example.justrun.tracking.ProgressCueEvent
 import com.example.justrun.DailyActivityWidgetUpdater.progressCycle
+import com.example.justrun.calculateStepsToday
+import com.example.justrun.restingCaloriesForToday
+import com.example.justrun.shouldResetDailyStepBaseline
+import com.example.justrun.secondsSinceLocalMidnight
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -95,6 +101,50 @@ class RunConfigTest {
         assertEquals("00:00:00", formatDurationHms(0))
         assertEquals("01:01:01", formatDurationHms(3661))
         assertEquals("24:00:00", formatDurationHms(24 * 3600))
+    }
+
+    @Test
+    fun `daily step baseline resets when day rolls over or counter drops`() {
+        assertTrue(
+            shouldResetDailyStepBaseline(
+                savedDayKey = "2026-04-25",
+                todayKey = "2026-04-26",
+                savedBaseline = 1200f,
+                counterValue = 1500f
+            )
+        )
+        assertTrue(
+            shouldResetDailyStepBaseline(
+                savedDayKey = "2026-04-26",
+                todayKey = "2026-04-26",
+                savedBaseline = 1200f,
+                counterValue = 100f
+            )
+        )
+        assertFalse(
+            shouldResetDailyStepBaseline(
+                savedDayKey = "2026-04-26",
+                todayKey = "2026-04-26",
+                savedBaseline = 1200f,
+                counterValue = 1800f
+            )
+        )
+    }
+
+    @Test
+    fun `daily step total is derived from step counter baseline`() {
+        assertEquals(0L, calculateStepsToday(counterValue = 4200f, baseline = 4200f))
+        assertEquals(350L, calculateStepsToday(counterValue = 4550f, baseline = 4200f))
+        assertEquals(0L, calculateStepsToday(counterValue = 4100f, baseline = 4200f))
+    }
+
+    @Test
+    fun `resting calories accumulate over the current day`() {
+        val timestamp = java.util.GregorianCalendar(2026, java.util.Calendar.APRIL, 26, 12, 0, 0).timeInMillis
+        assertEquals(43_200, secondsSinceLocalMidnight(timestamp))
+        val calories = restingCaloriesForToday(weightKg = 72f, nowMillis = timestamp)
+        assertTrue(calories > 800f)
+        assertTrue(calories < 1100f)
     }
 
     @Test
@@ -332,6 +382,20 @@ class RunConfigTest {
         val explicitFallback = (8.3f * 3.5f * 72f / 200f) / 60f
 
         assertEquals(explicitFallback, withoutHeartRate, 0.0001f)
+    }
+
+    @Test
+    fun `time cue boundary triggers when elapsed crosses the current interval`() {
+        assertTrue(crossedTimeCueBoundary(previousElapsedSeconds = 299, currentElapsedSeconds = 300, intervalSeconds = 300))
+        assertFalse(crossedTimeCueBoundary(previousElapsedSeconds = 300, currentElapsedSeconds = 301, intervalSeconds = 300))
+        assertFalse(crossedTimeCueBoundary(previousElapsedSeconds = 600, currentElapsedSeconds = 601, intervalSeconds = 600))
+    }
+
+    @Test
+    fun `distance cue boundary triggers when distance crosses the current interval`() {
+        assertTrue(crossedDistanceCueBoundary(previousDistanceKm = 1.59f, currentDistanceKm = 1.61f, intervalDistanceKm = 1.60934f))
+        assertFalse(crossedDistanceCueBoundary(previousDistanceKm = 1.61f, currentDistanceKm = 1.62f, intervalDistanceKm = 1.60934f))
+        assertFalse(crossedDistanceCueBoundary(previousDistanceKm = 3.22f, currentDistanceKm = 3.23f, intervalDistanceKm = 3.21868f))
     }
 
     @Test

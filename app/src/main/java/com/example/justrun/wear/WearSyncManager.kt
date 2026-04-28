@@ -2,6 +2,7 @@ package com.example.justrun.wear
 
 import android.content.Context
 import com.example.justrun.ActiveRunState
+import com.example.justrun.DailyActivitySyncPayload
 import com.example.justrun.SettingsState
 import com.example.justrun.TrackingSession
 import com.example.justrun.UnitSystem
@@ -14,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
@@ -26,7 +28,8 @@ object WearSyncManager {
     fun start(
         context: Context,
         trackingSession: StateFlow<TrackingSession>,
-        settings: StateFlow<SettingsState>
+        settings: StateFlow<SettingsState>,
+        dailyActivity: StateFlow<DailyActivitySyncPayload>
     ) {
         if (started) return
         synchronized(this) {
@@ -38,6 +41,30 @@ object WearSyncManager {
                 }.collect { snapshot ->
                     publishSnapshot(appContext, snapshot)
                     maybeOpenWatch(appContext, snapshot)
+                }
+            }
+            scope.launch {
+                var lastSettingsSnapshot: DailySettingsSnapshot? = null
+                settings.collect { appSettings ->
+                    val snapshot = DailySettingsSnapshot(
+                        heartRateEnabled = appSettings.heartRateTrackingEnabled,
+                        backgroundHeartMonitoringEnabled = appSettings.backgroundHeartMonitoringEnabled,
+                        dailyStepGoal = appSettings.dailyStepGoal,
+                        dailyCalorieGoal = appSettings.dailyCalorieGoal,
+                        weightKg = appSettings.weightKg,
+                        ageYears = appSettings.age
+                    )
+                    if (snapshot != lastSettingsSnapshot) {
+                        lastSettingsSnapshot = snapshot
+                        publishDailySettingsSnapshot(appContext, snapshot)
+                    }
+                }
+            }
+            scope.launch {
+                requestDailyActivitySync(appContext, settings.value, dailyActivity.value)
+                while (true) {
+                    delay(60_000L)
+                    requestDailyActivitySync(appContext, settings.value, dailyActivity.value)
                 }
             }
             started = true
@@ -60,11 +87,47 @@ object WearSyncManager {
             dataMap.putInt(KEY_LAP_COUNT, snapshot.lapCount)
             dataMap.putBoolean(KEY_GPS_ENABLED, snapshot.gpsEnabled)
             dataMap.putBoolean(KEY_HEART_RATE_ENABLED, snapshot.heartRateEnabled)
+            dataMap.putBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, snapshot.backgroundHeartMonitoringEnabled)
             dataMap.putInt(KEY_HEART_RATE_BPM, snapshot.heartRate ?: -1)
             dataMap.putString(KEY_GOAL_LABEL, snapshot.goalLabel)
             dataMap.putString(KEY_REMAINING_LABEL, snapshot.remainingLabel)
+        }.asPutDataRequest().setUrgent()
+        Wearable.getDataClient(context).putDataItem(request)
+    }
+
+    private fun publishDailySettingsSnapshot(context: Context, snapshot: DailySettingsSnapshot) {
+        val request = PutDataMapRequest.create(PATH_DAILY_ACTIVITY_SETTINGS).apply {
+            dataMap.putLong(KEY_UPDATED_AT, System.currentTimeMillis())
+            dataMap.putBoolean(KEY_HEART_RATE_ENABLED, snapshot.heartRateEnabled)
+            dataMap.putBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, snapshot.backgroundHeartMonitoringEnabled)
             dataMap.putInt(KEY_DAILY_STEP_GOAL, snapshot.dailyStepGoal)
             dataMap.putInt(KEY_DAILY_CALORIE_GOAL, snapshot.dailyCalorieGoal)
+            dataMap.putFloat(KEY_WEIGHT_KG, snapshot.weightKg)
+            dataMap.putFloat(KEY_AGE_YEARS, snapshot.ageYears)
+        }.asPutDataRequest().setUrgent()
+        Wearable.getDataClient(context).putDataItem(request)
+    }
+
+    private fun requestDailyActivitySync(
+        context: Context,
+        settings: SettingsState,
+        snapshot: DailyActivitySyncPayload
+    ) {
+        val request = PutDataMapRequest.create(PATH_DAILY_ACTIVITY_SYNC).apply {
+            dataMap.putLong(KEY_UPDATED_AT, System.currentTimeMillis())
+            dataMap.putBoolean(KEY_HEART_RATE_ENABLED, settings.heartRateTrackingEnabled)
+            dataMap.putBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, settings.backgroundHeartMonitoringEnabled)
+            dataMap.putInt(KEY_DAILY_STEP_GOAL, settings.dailyStepGoal)
+            dataMap.putInt(KEY_DAILY_CALORIE_GOAL, settings.dailyCalorieGoal)
+            dataMap.putFloat(KEY_WEIGHT_KG, settings.weightKg)
+            dataMap.putFloat(KEY_AGE_YEARS, settings.age)
+            dataMap.putString(KEY_DAILY_DAY, snapshot.dayKey)
+            dataMap.putLong(KEY_DAILY_STEPS, snapshot.steps)
+            dataMap.putLong(KEY_DAILY_STEPS_UPDATED_AT, snapshot.stepsUpdatedAtMillis)
+            dataMap.putFloat(KEY_DAILY_CALORIES, snapshot.calories)
+            dataMap.putLong(KEY_DAILY_CALORIES_UPDATED_AT, snapshot.caloriesUpdatedAtMillis)
+            dataMap.putInt(KEY_DAILY_HEART_RATE_BPM, snapshot.heartRateBpm ?: -1)
+            dataMap.putLong(KEY_DAILY_HEART_RATE_UPDATED_AT, snapshot.heartRateUpdatedAtMillis)
         }.asPutDataRequest().setUrgent()
         Wearable.getDataClient(context).putDataItem(request)
     }
@@ -105,13 +168,12 @@ object WearSyncManager {
             calories = run?.calories ?: 0,
             lapCount = run?.lapSplits?.size ?: 0,
             gpsEnabled = run?.gpsEnabled == true,
-            heartRateEnabled = run?.heartRateEnabled == true,
+            heartRateEnabled = settings.heartRateTrackingEnabled,
+            backgroundHeartMonitoringEnabled = settings.backgroundHeartMonitoringEnabled,
             heartRate = run?.heartRate,
             unitSystem = settings.unitSystem,
             goalLabel = run?.let { buildGoalLabel(it, settings.unitSystem) }.orEmpty(),
-            remainingLabel = run?.let { buildRemainingLabel(it, settings.unitSystem) }.orEmpty(),
-            dailyStepGoal = settings.dailyStepGoal,
-            dailyCalorieGoal = settings.dailyCalorieGoal
+            remainingLabel = run?.let { buildRemainingLabel(it, settings.unitSystem) }.orEmpty()
         )
     }
 
@@ -134,6 +196,8 @@ object WearSyncManager {
     }
 
     const val PATH_LIVE_RUN = "/live_run"
+    const val PATH_DAILY_ACTIVITY_SYNC = "/daily_activity_sync"
+    const val PATH_DAILY_ACTIVITY_SETTINGS = "/daily_activity_settings"
     const val PATH_OPEN_LIVE_RUN = "/open_live_run"
     const val PATH_PAUSE = "/pause"
     const val PATH_RESUME = "/resume"
@@ -155,11 +219,21 @@ object WearSyncManager {
     const val KEY_LAP_COUNT = "lap_count"
     const val KEY_GPS_ENABLED = "gps_enabled"
     const val KEY_HEART_RATE_ENABLED = "heart_rate_enabled"
+    const val KEY_BACKGROUND_HEART_MONITORING_ENABLED = "background_heart_monitoring_enabled"
     const val KEY_HEART_RATE_BPM = "heart_rate_bpm"
     const val KEY_GOAL_LABEL = "goal_label"
     const val KEY_REMAINING_LABEL = "remaining_label"
     const val KEY_DAILY_STEP_GOAL = "daily_step_goal"
     const val KEY_DAILY_CALORIE_GOAL = "daily_calorie_goal"
+    const val KEY_DAILY_DAY = "daily_day"
+    const val KEY_DAILY_STEPS = "daily_steps"
+    const val KEY_DAILY_STEPS_UPDATED_AT = "daily_steps_updated_at"
+    const val KEY_DAILY_CALORIES = "daily_calories"
+    const val KEY_DAILY_CALORIES_UPDATED_AT = "daily_calories_updated_at"
+    const val KEY_DAILY_HEART_RATE_BPM = "daily_heart_rate_bpm"
+    const val KEY_DAILY_HEART_RATE_UPDATED_AT = "daily_heart_rate_updated_at"
+    const val KEY_WEIGHT_KG = "weight_kg"
+    const val KEY_AGE_YEARS = "age_years"
 }
 
 internal data class WatchSyncState(
@@ -176,10 +250,18 @@ internal data class WatchSyncState(
     val lapCount: Int,
     val gpsEnabled: Boolean,
     val heartRateEnabled: Boolean,
+    val backgroundHeartMonitoringEnabled: Boolean,
     val heartRate: Int?,
     val unitSystem: UnitSystem,
     val goalLabel: String,
-    val remainingLabel: String,
+    val remainingLabel: String
+)
+
+private data class DailySettingsSnapshot(
+    val heartRateEnabled: Boolean,
+    val backgroundHeartMonitoringEnabled: Boolean,
     val dailyStepGoal: Int,
-    val dailyCalorieGoal: Int
+    val dailyCalorieGoal: Int,
+    val weightKg: Float,
+    val ageYears: Float
 )

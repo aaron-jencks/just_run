@@ -127,8 +127,25 @@ fi
 echo "Building APKs..."
 ./gradlew "${gradle_tasks[@]}"
 
+find_apk() {
+  local module="$1"
+  local variant="$2"
+
+  local apk
+  apk="$(find "$module/build/outputs/apk" -type f -name "*.apk" | grep -i "/${variant}/" | head -n 1 || true)"
+
+  if [[ -z "$apk" ]]; then
+    echo "Could not find APK for $module variant $variant" >&2
+    echo "Available APKs:" >&2
+    find "$module/build/outputs/apk" -type f -name "*.apk" >&2 || true
+    exit 1
+  fi
+
+  echo "$apk"
+}
+
 if [[ "$TARGET" == "phone" || "$TARGET" == "both" ]]; then
-  PHONE_APK="app/build/outputs/apk/${build_dir}/app-${apk_name_suffix}.apk"
+  PHONE_APK="$(find_apk app "$build_dir")"
   echo "Installing phone app on $PHONE_SERIAL"
   adb -s "$PHONE_SERIAL" install --no-streaming -r "$PHONE_APK"
   echo "Launching phone app"
@@ -136,7 +153,7 @@ if [[ "$TARGET" == "phone" || "$TARGET" == "both" ]]; then
 fi
 
 if [[ "$TARGET" == "watch" || "$TARGET" == "both" ]]; then
-  WATCH_APK="wear/build/outputs/apk/${build_dir}/wear-${apk_name_suffix}.apk"
+  WATCH_APK="$(find_apk wear "$build_dir")"
   echo "Installing watch app on $WATCH_SERIAL"
   adb -s "$WATCH_SERIAL" install --no-streaming -r "$WATCH_APK"
   echo "Launching watch app"
