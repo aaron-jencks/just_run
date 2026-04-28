@@ -221,17 +221,29 @@ private fun WearRunScreen(
         )
 
         Spacer(Modifier.height(2.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(18.dp), modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        if (isPaused) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconControlButton(
+                    onClick = onPauseToggle,
+                    symbol = "\u25b6",
+                    modifier = Modifier.weight(1f)
+                )
+                IconControlButton(
+                    onClick = onStop,
+                    symbol = "\u25a0",
+                    modifier = Modifier.weight(1f),
+                    filled = true
+                )
+            }
+        } else {
             IconControlButton(
                 onClick = onPauseToggle,
-                symbol = if (isPaused) "\u25b6" else "\u23f8",
-                modifier = Modifier.weight(1f)
-            )
-            IconControlButton(
-                onClick = onStop,
-                symbol = "\u25a0",
-                modifier = Modifier.weight(1f),
-                filled = true
+                symbol = "\u23f8",
+                modifier = Modifier.fillMaxWidth()
             )
         }
 

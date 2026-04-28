@@ -1372,32 +1372,44 @@ private fun RunScreen(
                 }
             }
             Card(shape = RoundedCornerShape(24.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(18.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
+                val isPaused = activeRun.paused || activeRun.autoPaused
+                if (isPaused) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onPauseToggle,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Resume")
+                        }
+                        Button(
+                            onClick = onStopRun,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Icon(Icons.Default.Stop, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Stop Run")
+                        }
+                    }
+                } else {
                     OutlinedButton(
                         onClick = onPauseToggle,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
                         shape = RoundedCornerShape(18.dp)
                     ) {
-                        Icon(
-                            if (activeRun.paused || activeRun.autoPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
-                            contentDescription = null
-                        )
+                        Icon(Icons.Default.Pause, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text(if (activeRun.paused || activeRun.autoPaused) "Resume" else "Pause")
-                    }
-                    Button(
-                        onClick = onStopRun,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(18.dp)
-                    ) {
-                        Icon(Icons.Default.Stop, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Stop Run")
+                        Text("Pause")
                     }
                 }
             }
