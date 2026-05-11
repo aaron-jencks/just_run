@@ -1,0 +1,55 @@
+@startuml
+title Start Run and Live Watch Sync
+
+actor User
+participant "MainActivity\nRunSetupScreen" as UI
+participant "TrackingController" as Controller
+participant "RunTrackingService" as Service
+participant "AppGraph.trackingController\ntrackingSession StateFlow" as SessionFlow
+participant "WearSyncManager" as WearSync
+participant "WearDataListenerService\n(watch)" as WearListener
+participant "WearSyncStore\n(watch)" as WearStore
+participant "WearMainActivity\n(watch)" as WearUI
+
+User -> UI : Tap Start Run
+UI -> Controller : startRun(runSetup, settings)
+Controller -> Service : startForegroundService(ACTION_START + extras)
+
+activate Service
+Service -> Service : build ActiveRunState
+Service -> Service : start foreground notification
+Service -> Service : start ticker loop
+Service -> Service : start GPS updates if enabled
+Service -> Service : register cadence sensor if available
+Service -> SessionFlow : publish(TrackingSession(activeRun))
+deactivate Service
+
+WearSync -> SessionFlow : collect trackingSession + settings
+SessionFlow --> WearSync : active run snapshot
+WearSync -> WearListener : PATH_LIVE_RUN data item
+WearSync -> WearListener : PATH_OPEN_LIVE_RUN message\n(best-effort)
+
+activate WearListener
+WearListener -> WearStore : publish(WearRunState)
+
+alt new active run seen in data item
+  WearListener -> WearUI : open live screen
+else open-live message delivered
+  WearListener -> WearUI : open live screen
+end
+
+WearListener -> WearListener : syncHeartRateService()
+deactivate WearListener
+
+WearUI -> WearStore : collect state
+WearStore --> WearUI : active run data
+WearUI -> User : render live watch screen
+
+loop every second / on location / on cadence changes
+  Service -> SessionFlow : publish(updated TrackingSession)
+  WearSync -> WearListener : updated PATH_LIVE_RUN data
+  WearListener -> WearStore : publish(updated WearRunState)
+  WearStore --> WearUI : recomposed live state
+end
+
+@enduml

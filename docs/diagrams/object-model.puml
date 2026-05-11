@@ -1,0 +1,141 @@
+@startuml
+title Just Run Object Model
+
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+
+package "Phone App" {
+  class MainActivity {
+    +JustRunApp()
+  }
+
+  class AppGraph {
+    +settingsRepository
+    +runRepository
+    +dailyActivityRepository
+    +trackingController
+  }
+
+  class SettingsRepository {
+    +settings : StateFlow<SettingsState>
+    +update(settings)
+  }
+
+  class RunRepository {
+    +runs : StateFlow<List<RunRecord>>
+    +addRun(run)
+    +deleteRun(runId)
+  }
+
+  class DailyActivityRepository {
+    +snapshot : StateFlow<DailyActivitySnapshot>
+    +localSyncPayload : StateFlow<DailyActivitySyncPayload>
+    +startMonitoring()
+    +mergeExternalSnapshot(payload)
+    +updateDerivedCalories(calories)
+  }
+
+  class TrackingController {
+    +trackingSession : StateFlow<TrackingSession>
+    +startRun(setup, settings)
+    +pauseRun()
+    +resumeRun()
+    +stopRun()
+    +markLap()
+    +publish(session)
+  }
+
+  class RunTrackingService {
+    +ACTION_START
+    +ACTION_PAUSE
+    +ACTION_RESUME
+    +ACTION_STOP
+    +ACTION_MARK_LAP
+  }
+
+  class WearSyncManager
+  class WearCommandListenerService
+  class DailyActivityWidgetUpdater
+  class GpxCodec
+
+  class SettingsState
+  class RunSetupState
+  class TrackingSession
+  class ActiveRunState
+  class RunRecord
+  class DailyActivitySnapshot
+  class DailyActivitySyncPayload
+}
+
+package "Watch App" {
+  class WearMainActivity
+  class WearDataListenerService
+  class WearHeartRateService
+  class WearHealthSnapshotStore
+  class WearSyncStore
+  class WearRunState
+  class WearHealthSnapshot
+  class HealthComplicationServices
+  class WearHealthPassiveMonitor
+}
+
+MainActivity --> AppGraph
+AppGraph --> SettingsRepository
+AppGraph --> RunRepository
+AppGraph --> DailyActivityRepository
+AppGraph --> TrackingController
+AppGraph --> WearSyncManager
+
+MainActivity ..> SettingsState
+MainActivity ..> RunSetupState
+MainActivity ..> TrackingSession
+MainActivity ..> RunRecord
+MainActivity ..> DailyActivitySnapshot
+
+TrackingController ..> RunTrackingService : intents
+TrackingController ..> TrackingSession
+TrackingController ..> ActiveRunState
+
+RunTrackingService --> TrackingController : publish session
+RunTrackingService --> RunRepository : addRun()
+RunTrackingService ..> ActiveRunState
+RunTrackingService ..> RunRecord
+RunTrackingService ..> SettingsState
+
+SettingsRepository ..> SettingsState
+RunRepository ..> RunRecord
+DailyActivityRepository ..> DailyActivitySnapshot
+DailyActivityRepository ..> DailyActivitySyncPayload
+DailyActivityWidgetUpdater --> DailyActivityRepository
+DailyActivityWidgetUpdater --> SettingsRepository
+
+WearSyncManager --> TrackingController : reads session
+WearSyncManager --> SettingsRepository : reads settings
+WearSyncManager --> DailyActivityRepository : reads local sync payload
+
+WearCommandListenerService --> DailyActivityRepository : mergeExternalSnapshot()
+WearCommandListenerService --> TrackingController : pause/resume/stop/lap
+WearCommandListenerService --> RunTrackingService : heart rate update action
+
+WearMainActivity --> WearSyncStore
+WearMainActivity --> WearHeartRateService
+WearMainActivity ..> WearRunState
+
+WearDataListenerService --> WearSyncStore
+WearDataListenerService --> WearHealthSnapshotStore
+WearDataListenerService --> WearMainActivity : open live run
+
+WearHeartRateService --> WearSyncStore
+WearHeartRateService --> WearHealthSnapshotStore
+
+HealthComplicationServices --> WearHealthSnapshotStore
+WearHealthPassiveMonitor --> WearHealthSnapshotStore
+
+WearSyncStore ..> WearRunState
+WearHealthSnapshotStore ..> WearHealthSnapshot
+
+WearSyncManager ..> WearDataListenerService : Data Layer
+WearMainActivity ..> WearCommandListenerService : Data Layer
+WearHealthSnapshotStore ..> WearCommandListenerService : Data Layer
+
+@enduml

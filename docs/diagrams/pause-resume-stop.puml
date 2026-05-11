@@ -1,0 +1,84 @@
+@startuml
+title Pause, Resume, Lap, and Stop
+
+actor User
+participant "Phone UI or Watch UI" as UI
+participant "TrackingController\nor WearMainActivity" as CommandSource
+participant "WearCommandListenerService\n(phone, watch commands only)" as WearCmd
+participant "RunTrackingService" as Service
+participant "TrackingSession StateFlow" as SessionFlow
+participant "RunRepository" as RunRepo
+participant "MainActivity" as PhoneUI
+participant "WearSyncManager" as WearSync
+participant "WearDataListenerService\n(watch)" as WearListener
+
+group Pause
+  User -> UI : Tap Pause
+  alt phone UI
+    UI -> CommandSource : pauseRun()
+    CommandSource -> Service : ACTION_PAUSE
+  else watch UI
+    UI -> CommandSource : send /pause
+    CommandSource -> WearCmd : PATH_PAUSE message
+    WearCmd -> Service : pauseRun()
+  end
+  Service -> Service : activeRun.paused = true
+  Service -> SessionFlow : publish(activeRun paused)
+end
+
+group Resume
+  User -> UI : Tap Resume
+  alt phone UI
+    UI -> CommandSource : resumeRun()
+    CommandSource -> Service : ACTION_RESUME
+  else watch UI
+    UI -> CommandSource : send /resume
+    CommandSource -> WearCmd : PATH_RESUME message
+    WearCmd -> Service : resumeRun()
+  end
+  Service -> Service : paused = false,\nautoPaused = false
+  Service -> SessionFlow : publish(activeRun resumed)
+end
+
+group Manual Lap
+  User -> UI : Tap Lap
+  alt phone UI
+    UI -> CommandSource : markLap()
+    CommandSource -> Service : ACTION_MARK_LAP
+  else watch UI
+    UI -> CommandSource : send /mark_lap
+    CommandSource -> WearCmd : PATH_MARK_LAP message
+    WearCmd -> Service : markLap()
+  end
+  Service -> Service : createLapSplit()
+  Service -> Service : maybe speak lap cue
+  Service -> SessionFlow : publish(updated lap list)
+end
+
+group Stop
+  User -> UI : Tap Stop\n(only visible while paused/auto-paused)
+  alt phone UI
+    UI -> CommandSource : stopRun()
+    CommandSource -> Service : ACTION_STOP
+  else watch UI
+    UI -> CommandSource : send /stop
+    CommandSource -> WearCmd : PATH_STOP message
+    WearCmd -> Service : stopRun()
+  end
+
+  activate Service
+  Service -> Service : finalizePendingLap()
+  Service -> RunRepo : addRun(RunRecord)
+  Service -> SessionFlow : publish(activeRun = null,\ncompletedRunId = record.id)
+  Service -> Service : stop timers/sensors/GPS
+  deactivate Service
+
+  PhoneUI -> SessionFlow : observe completedRunId
+  SessionFlow --> PhoneUI : completedRunId
+  PhoneUI -> PhoneUI : navigate to summary screen
+end
+
+SessionFlow --> WearSync : live session updates
+WearSync -> WearListener : PATH_LIVE_RUN updates
+
+@enduml

@@ -1,0 +1,48 @@
+@startuml
+title Settings Change Propagation
+
+actor User
+participant "SettingsScreen" as UI
+participant "SettingsRepository" as SettingsRepo
+participant "Settings StateFlow" as SettingsFlow
+participant "DailyActivityWidgetUpdater" as Widgets
+participant "WearSyncManager" as WearSync
+participant "WearDataListenerService\n(watch)" as WearListener
+participant "WearHealthSnapshotStore" as WearStore
+participant "WearHeartRateService" as WearHR
+participant "RunTrackingService" as RunService
+
+User -> UI : Change setting
+UI -> SettingsRepo : update(SettingsState copy)
+
+activate SettingsRepo
+SettingsRepo -> SettingsRepo : write SharedPreferences
+SettingsRepo -> SettingsFlow : emit updated SettingsState
+SettingsRepo -> Widgets : updateAll()
+deactivate SettingsRepo
+
+group Watch-related settings
+  WearSync -> SettingsFlow : collect settings
+
+  alt changed daily settings/profile
+    WearSync -> WearListener : PATH_DAILY_ACTIVITY_SETTINGS data
+    WearListener -> WearStore : updateConfiguration(...)
+    WearListener -> WearHR : syncHeartRateService()
+  end
+
+  alt next 60s daily activity request
+    WearSync -> WearListener : PATH_DAILY_ACTIVITY_SYNC\n(includes HR flags, goals, profile,\nphone local daily snapshot)
+    WearListener -> WearStore : updateConfiguration(...)
+    WearListener -> WearStore : mergeRemoteSnapshot(phone local payload)
+    WearListener -> WearStore : syncCurrentSnapshotToPhone()
+  end
+end
+
+group Run-time voice cues
+  note right of RunService
+    RunTrackingService does not latch\nvoice cue settings forever.
+    It refreshes live cue settings from\nSettingsRepository while a run is active.
+  end note
+end
+
+@enduml

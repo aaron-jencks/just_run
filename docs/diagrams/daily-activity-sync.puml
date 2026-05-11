@@ -1,0 +1,47 @@
+@startuml
+title Daily Activity Collection and Phone/Watch Sync
+
+participant "Phone DailyActivityRepository" as PhoneRepo
+participant "Phone step sensor\nTYPE_STEP_COUNTER" as PhoneSteps
+participant "AppGraph calorie loop" as CalorieLoop
+participant "WearSyncManager" as WearSync
+participant "WearDataListenerService\n(watch)" as WearListener
+participant "WearHealthSnapshotStore" as WatchStore
+participant "WearHeartRateService" as WatchSensors
+participant "WearCommandListenerService\n(phone)" as PhoneWearListener
+participant "Phone widgets / home UI" as PhoneUI
+participant "Watch complications / watch UI" as WatchUI
+
+group Phone local collection
+  PhoneSteps -> PhoneRepo : onSensorChanged(counter)
+  PhoneRepo -> PhoneRepo : update local steps + baseline
+  CalorieLoop -> PhoneRepo : updateDerivedCalories(...)
+  PhoneRepo -> PhoneUI : emit resolved snapshot
+end
+
+group Watch local collection
+  WatchSensors -> WatchStore : updateLocalStepsFromCounter(...)
+  WatchSensors -> WatchStore : updateHeartRate(...)
+  WatchSensors -> WatchStore : updateLocalCalories(...)
+  WatchStore -> WatchUI : request complication refresh
+end
+
+group Minute phone-initiated handshake
+  loop every 60 seconds
+    WearSync -> WearListener : PATH_DAILY_ACTIVITY_SYNC\n(phone local payload + goals/profile/flags)
+    WearListener -> WatchStore : updateConfiguration(...)
+    WearListener -> WatchStore : mergeRemoteSnapshot(phone payload)
+    WearListener -> WatchStore : syncCurrentSnapshotToPhone()
+    WatchStore -> PhoneWearListener : PATH_DAILY_HEALTH\n(watch local payload)
+    PhoneWearListener -> PhoneRepo : mergeExternalSnapshot(watch payload)
+    PhoneRepo -> PhoneUI : emit resolved snapshot
+  end
+end
+
+note bottom
+Phone UI/widgets render from PhoneRepo.snapshot.
+Watch UI/complications render from WatchStore.readWatchDisplay(),
+which is watch-local-first to avoid visible jitter.
+end note
+
+@enduml
