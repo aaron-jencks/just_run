@@ -74,6 +74,7 @@ object WearSyncManager {
     private fun publishSnapshot(context: Context, snapshot: WatchSyncState) {
         val request = PutDataMapRequest.create(PATH_LIVE_RUN).apply {
             dataMap.putLong(KEY_UPDATED_AT, System.currentTimeMillis())
+            dataMap.putLong(KEY_STARTED_AT_MILLIS, snapshot.startedAtMillis)
             dataMap.putBoolean(KEY_ACTIVE, snapshot.active)
             dataMap.putString(KEY_UNIT_SYSTEM, snapshot.unitSystem.name)
             dataMap.putString(KEY_GOAL, snapshot.goal)
@@ -139,13 +140,17 @@ object WearSyncManager {
         }
         val runId = snapshot.startedAtMillis
         if (lastOpenSignalRunId == runId) return
-        lastOpenSignalRunId = runId
         scope.launch {
             val nodes = runCatching { Tasks.await(Wearable.getNodeClient(context).connectedNodes) }.getOrDefault(emptyList())
+            var delivered = false
             nodes.forEach { node ->
                 runCatching {
                     Tasks.await(Wearable.getMessageClient(context).sendMessage(node.id, PATH_OPEN_LIVE_RUN, ByteArray(0)))
+                    delivered = true
                 }
+            }
+            if (delivered) {
+                lastOpenSignalRunId = runId
             }
         }
     }
@@ -206,6 +211,7 @@ object WearSyncManager {
     const val PATH_HEART_RATE = "/heart_rate"
 
     const val KEY_UPDATED_AT = "updated_at"
+    const val KEY_STARTED_AT_MILLIS = "started_at_millis"
     const val KEY_ACTIVE = "active"
     const val KEY_UNIT_SYSTEM = "unit_system"
     const val KEY_GOAL = "goal"

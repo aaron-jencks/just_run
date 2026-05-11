@@ -5,12 +5,17 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import android.hardware.Sensor
@@ -55,6 +60,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var sensorManager: SensorManager
+    private lateinit var audioManager: AudioManager
     private var stepDetectorSensor: Sensor? = null
     private var timerJob: Job? = null
     private var activeRun: ActiveRunState? = null
@@ -81,6 +87,8 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
     private var utteranceSequence: Long = 0L
     private var textToSpeech: TextToSpeech? = null
     private var textToSpeechReady: Boolean = false
+    private var cueAudioFocusRequest: AudioFocusRequest? = null
+    private var cueAudioFocusHeld: Boolean = false
     private val recentStepTimestamps = ArrayDeque<Long>()
 
     private val locationCallback = object : LocationCallback() {
@@ -161,6 +169,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
         AppGraph.init(applicationContext)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         stepDetectorSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
         createNotificationChannel()
         textToSpeech = TextToSpeech(this, this)
@@ -187,13 +196,40 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
         unregisterCadenceSensor()
         textToSpeech?.stop()
         textToSpeech?.shutdown()
+        abandonCueAudioFocus()
         scope.cancel()
     }
 
     override fun onInit(status: Int) {
         textToSpeechReady = status == TextToSpeech.SUCCESS
         if (textToSpeechReady) {
-            textToSpeech?.language = Locale.US
+            textToSpeech?.apply {
+                language = Locale.US
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                }
+                setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) = Unit
+
+                    override fun onDone(utteranceId: String?) {
+                        abandonCueAudioFocus()
+                    }
+
+                    @Deprecated("Deprecated in Java")
+                    override fun onError(utteranceId: String?) {
+                        abandonCueAudioFocus()
+                    }
+
+                    override fun onError(utteranceId: String?, errorCode: Int) {
+                        abandonCueAudioFocus()
+                    }
+                })
+            }
         }
     }
 
@@ -442,8 +478,49 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
 
     private fun speakVoiceCue(text: String, utteranceId: String) {
         if (!voiceCuesEnabled || !textToSpeechReady) return
+        if (!requestCueAudioFocus()) return
         utteranceSequence += 1
         textToSpeech?.speak(text, TextToSpeech.QUEUE_ADD, null, "${utteranceId}_$utteranceSequence")
+    }
+
+    private fun requestCueAudioFocus(): Boolean {
+        if (cueAudioFocusHeld) return true
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = cueAudioFocusRequest ?: AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                .setAcceptsDelayedFocusGain(false)
+                .setOnAudioFocusChangeListener { }
+                .build()
+                .also { cueAudioFocusRequest = it }
+            val granted = audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            cueAudioFocusHeld = granted
+            granted
+        } else {
+            @Suppress("DEPRECATION")
+            val granted = audioManager.requestAudioFocus(
+                null,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+            ) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            cueAudioFocusHeld = granted
+            granted
+        }
+    }
+
+    private fun abandonCueAudioFocus() {
+        if (!cueAudioFocusHeld) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            cueAudioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(null)
+        }
+        cueAudioFocusHeld = false
     }
 
     private fun maybeSpeakIntervalCue(previousRun: ActiveRunState, run: ActiveRunState?) {
@@ -564,7 +641,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
             .setContentText(
                 run?.let {
                     val unitSystem = AppGraph.settingsRepository.settings.value.unitSystem
-                    "Elapsed ${it.elapsedSeconds}s • ${formatNotificationDistance(it.distanceKm, unitSystem)}"
+                    "Elapsed ${formatNotificationDuration(it.elapsedSeconds)} • ${formatNotificationDistance(it.distanceKm, unitSystem)}"
                 } ?: "Preparing run"
             )
             .setContentIntent(launchIntent)
@@ -648,6 +725,13 @@ private fun formatNotificationDistance(distanceKm: Float, unitSystem: UnitSystem
     val displayDistance = if (unitSystem == UnitSystem.SI) distanceKm else distanceKm * 0.621371f
     val unitLabel = if (unitSystem == UnitSystem.SI) "km" else "mi"
     return "${"%.2f".format(displayDistance)} $unitLabel"
+}
+
+private fun formatNotificationDuration(totalSeconds: Int): String {
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d:%02d".format(hours, minutes, seconds)
 }
 
 private fun buildPaceSeries(run: ActiveRunState): List<Float> =

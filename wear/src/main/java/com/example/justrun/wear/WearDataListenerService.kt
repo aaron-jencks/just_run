@@ -73,33 +73,41 @@ class WearDataListenerService : WearableListenerService() {
             }
             if (event.dataItem.uri.path != PATH_LIVE_RUN) return@forEach
             val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
-            WearSyncStore.publish(
-                WearRunState(
-                    active = dataMap.getBoolean(KEY_ACTIVE, false),
-                    goal = dataMap.getString(KEY_GOAL).orEmpty(),
-                    paused = dataMap.getBoolean(KEY_PAUSED, false),
-                    autoPaused = dataMap.getBoolean(KEY_AUTO_PAUSED, false),
-                    elapsedSeconds = dataMap.getInt(KEY_ELAPSED_SECONDS, 0),
-                    distanceKm = dataMap.getFloat(KEY_DISTANCE_KM, 0f),
-                    avgPaceMinPerKm = dataMap.getFloat(KEY_AVG_PACE_MIN_PER_KM, -1f).takeIf { it >= 0f },
-                    currentPaceMinPerKm = dataMap.getFloat(KEY_CURRENT_PACE_MIN_PER_KM, -1f).takeIf { it >= 0f },
-                    calories = dataMap.getInt(KEY_CALORIES, 0),
-                    lapCount = dataMap.getInt(KEY_LAP_COUNT, 0),
-                    gpsEnabled = dataMap.getBoolean(KEY_GPS_ENABLED, true),
-                    heartRateEnabled = dataMap.getBoolean(KEY_HEART_RATE_ENABLED, false),
-                    backgroundHeartMonitoringEnabled = dataMap.getBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, true),
-                    heartRate = dataMap.getInt(KEY_HEART_RATE_BPM, -1).takeIf { it >= 0 },
-                    unitSystem = dataMap.getString(KEY_UNIT_SYSTEM)?.let(UnitSystem::valueOf) ?: UnitSystem.SI,
-                    goalLabel = dataMap.getString(KEY_GOAL_LABEL).orEmpty(),
-                    remainingLabel = dataMap.getString(KEY_REMAINING_LABEL).orEmpty()
-                )
+            val previous = WearSyncStore.state.value
+            val updated = WearRunState(
+                active = dataMap.getBoolean(KEY_ACTIVE, false),
+                startedAtMillis = dataMap.getLong(KEY_STARTED_AT_MILLIS, 0L),
+                goal = dataMap.getString(KEY_GOAL).orEmpty(),
+                paused = dataMap.getBoolean(KEY_PAUSED, false),
+                autoPaused = dataMap.getBoolean(KEY_AUTO_PAUSED, false),
+                elapsedSeconds = dataMap.getInt(KEY_ELAPSED_SECONDS, 0),
+                distanceKm = dataMap.getFloat(KEY_DISTANCE_KM, 0f),
+                avgPaceMinPerKm = dataMap.getFloat(KEY_AVG_PACE_MIN_PER_KM, -1f).takeIf { it >= 0f },
+                currentPaceMinPerKm = dataMap.getFloat(KEY_CURRENT_PACE_MIN_PER_KM, -1f).takeIf { it >= 0f },
+                calories = dataMap.getInt(KEY_CALORIES, 0),
+                lapCount = dataMap.getInt(KEY_LAP_COUNT, 0),
+                gpsEnabled = dataMap.getBoolean(KEY_GPS_ENABLED, true),
+                heartRateEnabled = dataMap.getBoolean(KEY_HEART_RATE_ENABLED, false),
+                backgroundHeartMonitoringEnabled = dataMap.getBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, true),
+                heartRate = dataMap.getInt(KEY_HEART_RATE_BPM, -1).takeIf { it >= 0 },
+                unitSystem = dataMap.getString(KEY_UNIT_SYSTEM)?.let(UnitSystem::valueOf) ?: UnitSystem.SI,
+                goalLabel = dataMap.getString(KEY_GOAL_LABEL).orEmpty(),
+                remainingLabel = dataMap.getString(KEY_REMAINING_LABEL).orEmpty()
             )
+            WearSyncStore.publish(updated)
+            if (updated.active && (!previous.active || previous.startedAtMillis != updated.startedAtMillis)) {
+                openLiveRun()
+            }
             syncHeartRateService()
         }
     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         if (messageEvent.path != PATH_OPEN_LIVE_RUN) return
+        openLiveRun()
+    }
+
+    private fun openLiveRun() {
         val intent = Intent(this, WearMainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }
@@ -127,6 +135,7 @@ const val PATH_MARK_LAP = "/mark_lap"
 const val PATH_HEART_RATE = "/heart_rate"
 
 const val KEY_ACTIVE = "active"
+const val KEY_STARTED_AT_MILLIS = "started_at_millis"
 const val KEY_UNIT_SYSTEM = "unit_system"
 const val KEY_GOAL = "goal"
 const val KEY_PAUSED = "paused"

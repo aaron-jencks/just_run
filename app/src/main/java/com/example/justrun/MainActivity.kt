@@ -920,15 +920,6 @@ private fun SettingsScreen(
                 checked = settings.watchMirroring,
                 onCheckedChange = { onSettingsChanged(settings.copy(watchMirroring = it)) }
             )
-            Card(shape = RoundedCornerShape(24.dp)) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("What comes next", fontWeight = FontWeight.SemiBold)
-                    Text(
-                        "These values will feed calorie estimation, heart-rate zones, and watch summaries once the tracking layer is connected.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
         }
     }
 }

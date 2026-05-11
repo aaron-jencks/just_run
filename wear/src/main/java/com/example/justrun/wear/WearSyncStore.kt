@@ -16,6 +16,7 @@ object WearSyncStore {
 
 data class WearRunState(
     val active: Boolean = false,
+    val startedAtMillis: Long = 0L,
     val goal: String = "",
     val paused: Boolean = false,
     val autoPaused: Boolean = false,
