@@ -47,6 +47,7 @@ object WearHealthSnapshotStore {
     private const val KEY_RESOLVED_HEART_RATE_BPM = "resolved_heart_rate_bpm"
     private const val KEY_RESOLVED_UPDATED_AT = "resolved_updated_at"
     private const val KEY_LAST_SYNC_TO_PHONE_AT = "last_sync_to_phone_at"
+    private const val KEY_SEQUENCE_NUMBER = "sequence_number"
     private const val DEFAULT_DAILY_STEP_GOAL = 5_000f
     private const val DEFAULT_DAILY_CALORIE_GOAL = 2_000f
     private const val DEFAULT_HEART_RATE_MIN = 40f
@@ -55,6 +56,7 @@ object WearHealthSnapshotStore {
     private val stateMutex = Mutex()
     @Volatile
     private var cachedState: WearHealthState? = null
+    private val syncCadence = WatchActivitySyncCadence()
 
     fun read(context: Context): WearHealthSnapshot = runBlocking {
         stateMutex.withLock { loadStateLocked(context).resolved }
@@ -64,9 +66,13 @@ object WearHealthSnapshotStore {
         stateMutex.withLock { loadStateLocked(context).watchDisplaySnapshot() }
     }
 
+    fun readLocal(context: Context): WearHealthSnapshot = runBlocking {
+        stateMutex.withLock { loadStateLocked(context).localSnapshot() }
+    }
+
     fun updateFromPassiveData(context: Context, dataPoints: DataPointContainer) {
         val heartRateSample = dataPoints.getData(DataType.HEART_RATE_BPM).lastOrNull()?.value?.roundToInt() ?: return
-        updateState(context, syncToPhone = false) { current ->
+        updateState(context, syncToPhone = true) { current ->
             current.copy(
                 localHeartRateBpm = heartRateSample,
                 localHeartRateUpdatedAtMillis = System.currentTimeMillis()
@@ -75,7 +81,7 @@ object WearHealthSnapshotStore {
     }
 
     fun updateHeartRate(context: Context, heartRateBpm: Int) {
-        updateState(context, syncToPhone = false) { current ->
+        updateState(context, syncToPhone = true) { current ->
             current.copy(
                 localHeartRateBpm = heartRateBpm,
                 localHeartRateUpdatedAtMillis = System.currentTimeMillis()
@@ -84,7 +90,7 @@ object WearHealthSnapshotStore {
     }
 
     fun updateLocalCalories(context: Context, calories: Float, nowMillis: Long = System.currentTimeMillis()) {
-        updateState(context, syncToPhone = false) { current ->
+        updateState(context, syncToPhone = true) { current ->
             if (abs(current.localCalories - calories) < 0.5f &&
                 abs(nowMillis - current.localCaloriesUpdatedAtMillis) < 30_000L
             ) {
@@ -99,7 +105,7 @@ object WearHealthSnapshotStore {
     }
 
     fun updateLocalStepsFromCounter(context: Context, counterValue: Float, nowMillis: Long = System.currentTimeMillis()) {
-        updateState(context, syncToPhone = false, dayKeyOverride = wearTodayKey()) { current ->
+        updateState(context, syncToPhone = true, dayKeyOverride = wearTodayKey()) { current ->
             val baseline = when {
                 current.stepCounterBaseline < 0f || counterValue < current.stepCounterBaseline -> counterValue
                 else -> current.stepCounterBaseline
@@ -225,6 +231,7 @@ object WearHealthSnapshotStore {
             heartRateEnabled = prefs.getBoolean(KEY_HEART_RATE_ENABLED, false),
             backgroundHeartMonitoringEnabled = prefs.getBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, true),
             stepCounterBaseline = prefs.getFloat(KEY_STEP_COUNTER_BASELINE, -1f),
+            sequenceNumber = prefs.getLong(KEY_SEQUENCE_NUMBER, 0L),
             lastSyncToPhoneAtMillis = prefs.getLong(KEY_LAST_SYNC_TO_PHONE_AT, 0L),
             resolved = WearHealthSnapshot(
                 dailySteps = prefs.getLong(KEY_RESOLVED_STEPS, 0L),
@@ -262,6 +269,7 @@ object WearHealthSnapshotStore {
             .putBoolean(KEY_HEART_RATE_ENABLED, state.heartRateEnabled)
             .putBoolean(KEY_BACKGROUND_HEART_MONITORING_ENABLED, state.backgroundHeartMonitoringEnabled)
             .putFloat(KEY_STEP_COUNTER_BASELINE, state.stepCounterBaseline)
+            .putLong(KEY_SEQUENCE_NUMBER, state.sequenceNumber)
             .putLong(KEY_RESOLVED_STEPS, state.resolved.dailySteps)
             .putFloat(KEY_RESOLVED_CALORIES, state.resolved.dailyCalories)
             .putInt(KEY_RESOLVED_HEART_RATE_BPM, state.resolved.heartRateBpm ?: -1)
@@ -278,7 +286,7 @@ object WearHealthSnapshotStore {
     ) {
         val lastSyncAt = stateMutex.withLock { loadStateLocked(context).lastSyncToPhoneAtMillis }
         val now = System.currentTimeMillis()
-        if (!force && now - lastSyncAt < 60_000L) return
+        if (!force && !syncCadence.shouldSync(payload, now, lastSyncAt)) return
         val request = PutDataMapRequest.create(PATH_DAILY_HEALTH).apply {
             dataMap.putString(KEY_DAY_DATA, payload.dayKey)
             dataMap.putLong(KEY_DAILY_STEPS_DATA, payload.steps)
@@ -288,8 +296,11 @@ object WearHealthSnapshotStore {
             dataMap.putInt(KEY_HEART_RATE_DATA, payload.heartRateBpm ?: -1)
             dataMap.putLong(KEY_HEART_RATE_UPDATED_AT_DATA, payload.heartRateUpdatedAtMillis)
             dataMap.putLong(KEY_UPDATED_AT_DATA, now)
+            dataMap.putLong(KEY_SEQUENCE_NUMBER_DATA, payload.sequenceNumber)
         }.asPutDataRequest().setUrgent()
         runCatching { Tasks.await(Wearable.getDataClient(context).putDataItem(request)) }
+        syncCadence.markSynced(payload)
+        WearDiagnostics.log("daily activity sync sent seq=${payload.sequenceNumber} steps=${payload.steps} calories=${"%.1f".format(payload.calories)}")
         stateMutex.withLock {
             val current = loadStateLocked(context)
             persistStateLocked(context, current.copy(lastSyncToPhoneAtMillis = now))
@@ -321,7 +332,12 @@ object WearHealthSnapshotStore {
                 if (transformed == current) {
                     return@withLock current to null
                 }
-                val resolved = transformed.withResolved(previousResolved = current.resolved)
+                val sequenced = if (syncToPhone) {
+                    transformed.copy(sequenceNumber = current.sequenceNumber + 1L)
+                } else {
+                    transformed
+                }
+                val resolved = sequenced.withResolved(previousResolved = current.resolved)
                 persistStateLocked(context, resolved)
                 resolved to if (syncToPhone) resolved.toLocalSyncPayload() else null
             }
@@ -346,6 +362,7 @@ object WearHealthSnapshotStore {
     const val KEY_HEART_RATE_DATA = "heart_rate_bpm"
     const val KEY_HEART_RATE_UPDATED_AT_DATA = "heart_rate_updated_at"
     const val KEY_UPDATED_AT_DATA = "updated_at"
+    const val KEY_SEQUENCE_NUMBER_DATA = "sequence_number"
 }
 
 data class WearHealthSnapshot(
@@ -366,7 +383,8 @@ data class WearDailySyncPayload(
     val calories: Float,
     val caloriesUpdatedAtMillis: Long,
     val heartRateBpm: Int?,
-    val heartRateUpdatedAtMillis: Long
+    val heartRateUpdatedAtMillis: Long,
+    val sequenceNumber: Long = 0L
 )
 
 data class WearMonitoringConfig(
@@ -395,6 +413,7 @@ private data class WearHealthState(
     val heartRateEnabled: Boolean = false,
     val backgroundHeartMonitoringEnabled: Boolean = true,
     val stepCounterBaseline: Float = -1f,
+    val sequenceNumber: Long = 0L,
     val lastSyncToPhoneAtMillis: Long = 0L,
     val resolved: WearHealthSnapshot = WearHealthSnapshot()
 ) {
@@ -443,7 +462,20 @@ private data class WearHealthState(
             calories = localCalories,
             caloriesUpdatedAtMillis = localCaloriesUpdatedAtMillis,
             heartRateBpm = localHeartRateBpm,
-            heartRateUpdatedAtMillis = localHeartRateUpdatedAtMillis
+            heartRateUpdatedAtMillis = localHeartRateUpdatedAtMillis,
+            sequenceNumber = sequenceNumber
+        )
+
+    fun localSnapshot(): WearHealthSnapshot =
+        WearHealthSnapshot(
+            dailySteps = localSteps,
+            dailyCalories = localCalories,
+            heartRateBpm = localHeartRateBpm,
+            heartRateUpdatedAtMillis = localHeartRateUpdatedAtMillis,
+            stepGoalOverride = stepGoalOverride,
+            calorieGoalOverride = calorieGoalOverride,
+            weightKg = weightKg,
+            ageYears = ageYears
         )
 
     fun watchDisplaySnapshot(): WearHealthSnapshot =
@@ -539,6 +571,40 @@ private fun chooseWearMetric(
         WearResolvedMetric(localValue, localUpdatedAtMillis)
     } else {
         WearResolvedMetric(remoteValue, remoteUpdatedAtMillis)
+    }
+}
+
+private class WatchActivitySyncCadence {
+    private var lastSyncedPayload: WearDailySyncPayload? = null
+    private var stableSyncCount = 0
+
+    fun shouldSync(payload: WearDailySyncPayload, nowMillis: Long, lastSyncAtMillis: Long): Boolean {
+        val minimumInterval = currentIntervalMillis(payload)
+        return nowMillis - lastSyncAtMillis >= minimumInterval
+    }
+
+    fun markSynced(payload: WearDailySyncPayload) {
+        val previous = lastSyncedPayload
+        stableSyncCount = if (previous != null && isStable(previous, payload)) stableSyncCount + 1 else 0
+        lastSyncedPayload = payload
+    }
+
+    private fun currentIntervalMillis(payload: WearDailySyncPayload): Long {
+        val previous = lastSyncedPayload ?: return 5_000L
+        if (!isStable(previous, payload)) return 5_000L
+        return when {
+            stableSyncCount >= 4 -> 20_000L
+            stableSyncCount >= 2 -> 10_000L
+            else -> 5_000L
+        }
+    }
+
+    private fun isStable(previous: WearDailySyncPayload, current: WearDailySyncPayload): Boolean {
+        val heartRateDelta = kotlin.math.abs((current.heartRateBpm ?: 0) - (previous.heartRateBpm ?: 0))
+        return current.dayKey == previous.dayKey &&
+            current.steps == previous.steps &&
+            kotlin.math.abs(current.calories - previous.calories) < 1f &&
+            heartRateDelta < 4
     }
 }
 

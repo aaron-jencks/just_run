@@ -10,6 +10,10 @@ import com.example.justrun.tracking.calculateCadenceSpm
 import com.example.justrun.tracking.crossedDistanceCueBoundary
 import com.example.justrun.tracking.crossedTimeCueBoundary
 import com.example.justrun.tracking.isMovementSample
+import com.example.justrun.tracking.calculateGpsSegment
+import com.example.justrun.tracking.calculateGpsSegmentValues
+import com.example.justrun.tracking.shouldAcceptPoint
+import com.example.justrun.tracking.shouldAccumulateRunTick
 import com.example.justrun.tracking.ProgressCueEvent
 import com.example.justrun.DailyActivityWidgetUpdater.progressCycle
 import com.example.justrun.calculateStepsToday
@@ -145,6 +149,147 @@ class RunConfigTest {
         val calories = restingCaloriesForToday(weightKg = 72f, nowMillis = timestamp)
         assertTrue(calories > 800f)
         assertTrue(calories < 1100f)
+    }
+
+    @Test
+    fun `daily activity accepts newer watch snapshot for current day`() {
+        val current = DailyActivityState(
+            dayKey = "2026-06-06",
+            sequenceNumber = 2L,
+            snapshot = DailyActivitySnapshot(dayKey = "2026-06-06", steps = 100L, updatedAtMillis = 1_000L, sequenceNumber = 2L)
+        )
+
+        val accepted = acceptWatchSnapshot(
+            current = current,
+            incoming = DailyActivitySyncPayload(
+                dayKey = "2026-06-06",
+                steps = 150L,
+                stepsUpdatedAtMillis = 2_000L,
+                calories = 12f,
+                caloriesUpdatedAtMillis = 2_000L,
+                heartRateBpm = 82,
+                heartRateUpdatedAtMillis = 2_000L,
+                snapshotUpdatedAtMillis = 2_000L,
+                sequenceNumber = 3L
+            ),
+            currentDayKey = "2026-06-06"
+        )
+
+        assertEquals(150L, accepted.snapshot.steps)
+        assertEquals(3L, accepted.sequenceNumber)
+    }
+
+    @Test
+    fun `daily activity rejects stale watch snapshot for current day`() {
+        val current = DailyActivityState(
+            dayKey = "2026-06-06",
+            sequenceNumber = 3L,
+            snapshot = DailyActivitySnapshot(dayKey = "2026-06-06", steps = 150L, updatedAtMillis = 2_000L, sequenceNumber = 3L)
+        )
+
+        val accepted = acceptWatchSnapshot(
+            current = current,
+            incoming = DailyActivitySyncPayload(
+                dayKey = "2026-06-06",
+                steps = 100L,
+                stepsUpdatedAtMillis = 1_000L,
+                calories = 8f,
+                caloriesUpdatedAtMillis = 1_000L,
+                heartRateBpm = 80,
+                heartRateUpdatedAtMillis = 1_000L,
+                snapshotUpdatedAtMillis = 1_000L,
+                sequenceNumber = 2L
+            ),
+            currentDayKey = "2026-06-06"
+        )
+
+        assertEquals(150L, accepted.snapshot.steps)
+        assertEquals(3L, accepted.sequenceNumber)
+    }
+
+    @Test
+    fun `daily activity rejects duplicate watch sequence even with newer transport timestamp`() {
+        val current = DailyActivityState(
+            dayKey = "2026-06-06",
+            sequenceNumber = 3L,
+            snapshot = DailyActivitySnapshot(dayKey = "2026-06-06", steps = 150L, updatedAtMillis = 2_000L, sequenceNumber = 3L)
+        )
+
+        val accepted = acceptWatchSnapshot(
+            current = current,
+            incoming = DailyActivitySyncPayload(
+                dayKey = "2026-06-06",
+                steps = 175L,
+                stepsUpdatedAtMillis = 3_000L,
+                calories = 20f,
+                caloriesUpdatedAtMillis = 3_000L,
+                heartRateBpm = 84,
+                heartRateUpdatedAtMillis = 3_000L,
+                snapshotUpdatedAtMillis = 3_000L,
+                sequenceNumber = 3L
+            ),
+            currentDayKey = "2026-06-06"
+        )
+
+        assertEquals(150L, accepted.snapshot.steps)
+        assertEquals(3L, accepted.sequenceNumber)
+    }
+
+    @Test
+    fun `daily activity accepts zero sequence watch snapshot by timestamp`() {
+        val current = DailyActivityState(
+            dayKey = "2026-06-06",
+            sequenceNumber = 3L,
+            snapshot = DailyActivitySnapshot(dayKey = "2026-06-06", steps = 150L, updatedAtMillis = 2_000L, sequenceNumber = 3L)
+        )
+
+        val accepted = acceptWatchSnapshot(
+            current = current,
+            incoming = DailyActivitySyncPayload(
+                dayKey = "2026-06-06",
+                steps = 175L,
+                stepsUpdatedAtMillis = 3_000L,
+                calories = 20f,
+                caloriesUpdatedAtMillis = 3_000L,
+                heartRateBpm = 84,
+                heartRateUpdatedAtMillis = 3_000L,
+                snapshotUpdatedAtMillis = 3_000L,
+                sequenceNumber = 0L
+            ),
+            currentDayKey = "2026-06-06"
+        )
+
+        assertEquals(175L, accepted.snapshot.steps)
+        assertEquals(0L, accepted.sequenceNumber)
+    }
+
+    @Test
+    fun `daily activity resets and ignores previous day watch snapshot`() {
+        val current = DailyActivityState(
+            dayKey = "2026-06-05",
+            sequenceNumber = 8L,
+            snapshot = DailyActivitySnapshot(dayKey = "2026-06-05", steps = 9_000L, updatedAtMillis = 9_000L, sequenceNumber = 8L)
+        )
+
+        val accepted = acceptWatchSnapshot(
+            current = current,
+            incoming = DailyActivitySyncPayload(
+                dayKey = "2026-06-05",
+                steps = 9_500L,
+                stepsUpdatedAtMillis = 10_000L,
+                calories = 500f,
+                caloriesUpdatedAtMillis = 10_000L,
+                heartRateBpm = 70,
+                heartRateUpdatedAtMillis = 10_000L,
+                snapshotUpdatedAtMillis = 10_000L,
+                sequenceNumber = 9L
+            ),
+            currentDayKey = "2026-06-06"
+        )
+
+        assertEquals("2026-06-06", accepted.dayKey)
+        assertEquals(0L, accepted.snapshot.steps)
+        assertEquals(0L, accepted.sequenceNumber)
     }
 
     @Test
@@ -692,4 +837,118 @@ class RunConfigTest {
 
         assertTrue(isMovementSample(candidate, previous))
     }
+
+    @Test
+    fun `normal accepted gps segment contributes distance and elevation`() {
+        val segment = calculateGpsSegmentValues(
+            previousAltitudeMeters = 10.0,
+            candidateAltitudeMeters = 14.0,
+            distanceKm = 0.12f,
+            skipDistanceSegment = false
+        )
+
+        assertEquals(0.12f, segment.distanceKm, 0.0001f)
+        assertEquals(4, segment.elevationGainM)
+        assertFalse(segment.skipNextDistanceSegment)
+    }
+
+    @Test
+    fun `first accepted gps segment after pause becomes zero distance anchor`() {
+        val previous = LocationPoint(
+            timestampMillis = 0L,
+            latitude = 40.0,
+            longitude = -74.0,
+            altitudeMeters = 10.0,
+            accuracyMeters = 5f,
+            speedMetersPerSecond = 0f
+        )
+        val resumeAnchor = LocationPoint(
+            timestampMillis = 60_000L,
+            latitude = 40.01,
+            longitude = -74.0,
+            altitudeMeters = 25.0,
+            accuracyMeters = 5f,
+            speedMetersPerSecond = 2f
+        )
+
+        val segment = calculateGpsSegment(previous, resumeAnchor, skipDistanceSegment = true)
+
+        assertEquals(0f, segment.distanceKm)
+        assertEquals(0, segment.elevationGainM)
+        assertFalse(segment.skipNextDistanceSegment)
+    }
+
+    @Test
+    fun `post resume anchor accepts clean stationary point but rejects noisy point`() {
+        val previous = LocationPoint(
+            timestampMillis = 0L,
+            latitude = 40.0,
+            longitude = -74.0,
+            altitudeMeters = 10.0,
+            accuracyMeters = 5f,
+            speedMetersPerSecond = 0f
+        )
+        val cleanNearbyPoint = LocationPoint(
+            timestampMillis = 1_000L,
+            latitude = 40.000001,
+            longitude = -74.0,
+            altitudeMeters = 10.0,
+            accuracyMeters = 5f,
+            speedMetersPerSecond = 0f
+        )
+        val noisyNearbyPoint = cleanNearbyPoint.copy(accuracyMeters = 100f)
+
+        assertTrue(shouldAcceptPoint(previous, cleanNearbyPoint, acceptStationaryAnchor = true))
+        assertFalse(shouldAcceptPoint(previous, noisyNearbyPoint, acceptStationaryAnchor = true))
+    }
+
+    @Test
+    fun `second accepted gps segment after pause contributes distance normally`() {
+        val segment = calculateGpsSegmentValues(
+            previousAltitudeMeters = 25.0,
+            candidateAltitudeMeters = 30.0,
+            distanceKm = 0.1f,
+            skipDistanceSegment = false
+        )
+
+        assertEquals(0.1f, segment.distanceKm, 0.0001f)
+        assertEquals(5, segment.elevationGainM)
+    }
+
+    @Test
+    fun `paused and auto paused runs do not accumulate tick calories`() {
+        val running = testActiveRun(paused = false, autoPaused = false)
+        val paused = testActiveRun(paused = true, autoPaused = false)
+        val autoPaused = testActiveRun(paused = false, autoPaused = true)
+
+        assertTrue(shouldAccumulateRunTick(running))
+        assertFalse(shouldAccumulateRunTick(paused))
+        assertFalse(shouldAccumulateRunTick(autoPaused))
+    }
+
+    private fun testActiveRun(paused: Boolean, autoPaused: Boolean): ActiveRunState =
+        ActiveRunState(
+            goal = RunGoal.ENDLESS,
+            targetDistanceKm = null,
+            targetDurationSeconds = null,
+            startedAtMillis = 0L,
+            elapsedSeconds = 0,
+            distanceKm = 0f,
+            avgPaceMinPerKm = null,
+            currentPaceMinPerKm = null,
+            calories = 0,
+            heartRate = null,
+            cadence = 0,
+            elevationGainM = 0,
+            lapSplits = emptyList(),
+            lapMode = LapMode.MANUAL,
+            lapTrigger = LapTrigger.TIME,
+            lapDistanceKm = null,
+            lapTimeSeconds = null,
+            paused = paused,
+            autoPaused = autoPaused,
+            gpsEnabled = true,
+            heartRateEnabled = false,
+            routePoints = emptyList()
+        )
 }

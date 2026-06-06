@@ -2,7 +2,7 @@ package com.example.justrun.wear
 
 import android.content.Context
 import com.example.justrun.ActiveRunState
-import com.example.justrun.DailyActivitySyncPayload
+import com.example.justrun.AppDiagnostics
 import com.example.justrun.SettingsState
 import com.example.justrun.TrackingSession
 import com.example.justrun.UnitSystem
@@ -28,8 +28,7 @@ object WearSyncManager {
     fun start(
         context: Context,
         trackingSession: StateFlow<TrackingSession>,
-        settings: StateFlow<SettingsState>,
-        dailyActivity: StateFlow<DailyActivitySyncPayload>
+        settings: StateFlow<SettingsState>
     ) {
         if (started) return
         synchronized(this) {
@@ -61,10 +60,10 @@ object WearSyncManager {
                 }
             }
             scope.launch {
-                requestDailyActivitySync(appContext, settings.value, dailyActivity.value)
+                requestDailyActivitySync(appContext, settings.value)
                 while (true) {
                     delay(60_000L)
-                    requestDailyActivitySync(appContext, settings.value, dailyActivity.value)
+                    requestDailyActivitySync(appContext, settings.value)
                 }
             }
             started = true
@@ -72,6 +71,9 @@ object WearSyncManager {
     }
 
     private fun publishSnapshot(context: Context, snapshot: WatchSyncState) {
+        if (snapshot.active && snapshot.elapsedSeconds == 0) {
+            AppDiagnostics.log("wear live run publish start runId=${snapshot.startedAtMillis}")
+        }
         val request = PutDataMapRequest.create(PATH_LIVE_RUN).apply {
             dataMap.putLong(KEY_UPDATED_AT, System.currentTimeMillis())
             dataMap.putLong(KEY_STARTED_AT_MILLIS, snapshot.startedAtMillis)
@@ -111,9 +113,9 @@ object WearSyncManager {
 
     private fun requestDailyActivitySync(
         context: Context,
-        settings: SettingsState,
-        snapshot: DailyActivitySyncPayload
+        settings: SettingsState
     ) {
+        AppDiagnostics.log("daily activity sync request")
         val request = PutDataMapRequest.create(PATH_DAILY_ACTIVITY_SYNC).apply {
             dataMap.putLong(KEY_UPDATED_AT, System.currentTimeMillis())
             dataMap.putBoolean(KEY_HEART_RATE_ENABLED, settings.heartRateTrackingEnabled)
@@ -122,13 +124,6 @@ object WearSyncManager {
             dataMap.putInt(KEY_DAILY_CALORIE_GOAL, settings.dailyCalorieGoal)
             dataMap.putFloat(KEY_WEIGHT_KG, settings.weightKg)
             dataMap.putFloat(KEY_AGE_YEARS, settings.age)
-            dataMap.putString(KEY_DAILY_DAY, snapshot.dayKey)
-            dataMap.putLong(KEY_DAILY_STEPS, snapshot.steps)
-            dataMap.putLong(KEY_DAILY_STEPS_UPDATED_AT, snapshot.stepsUpdatedAtMillis)
-            dataMap.putFloat(KEY_DAILY_CALORIES, snapshot.calories)
-            dataMap.putLong(KEY_DAILY_CALORIES_UPDATED_AT, snapshot.caloriesUpdatedAtMillis)
-            dataMap.putInt(KEY_DAILY_HEART_RATE_BPM, snapshot.heartRateBpm ?: -1)
-            dataMap.putLong(KEY_DAILY_HEART_RATE_UPDATED_AT, snapshot.heartRateUpdatedAtMillis)
         }.asPutDataRequest().setUrgent()
         Wearable.getDataClient(context).putDataItem(request)
     }
@@ -150,7 +145,10 @@ object WearSyncManager {
                 }
             }
             if (delivered) {
+                AppDiagnostics.log("watch open signal delivered runId=$runId nodes=${nodes.size}")
                 lastOpenSignalRunId = runId
+            } else {
+                AppDiagnostics.log("watch open signal pending runId=$runId nodes=${nodes.size}")
             }
         }
     }

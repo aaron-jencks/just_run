@@ -1,5 +1,6 @@
 package com.example.justrun.wear
 
+import com.example.justrun.AppDiagnostics
 import com.example.justrun.AppGraph
 import com.example.justrun.DailyActivitySyncPayload
 import android.content.Intent
@@ -19,6 +20,9 @@ class WearCommandListenerService : WearableListenerService() {
         dataEvents.forEach { event ->
             if (event.dataItem.uri.path != PATH_DAILY_HEALTH) return@forEach
             val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+            AppDiagnostics.log(
+                "daily activity sync reply steps=${dataMap.getLong(KEY_DAILY_STEPS_DATA, 0L)} calories=${"%.1f".format(dataMap.getFloat(KEY_DAILY_CALORIES_DATA, 0f))}"
+            )
             AppGraph.dailyActivityRepository.mergeExternalSnapshot(
                 DailyActivitySyncPayload(
                     dayKey = dataMap.getString(KEY_DAY_DATA).orEmpty(),
@@ -27,7 +31,9 @@ class WearCommandListenerService : WearableListenerService() {
                     calories = dataMap.getFloat(KEY_DAILY_CALORIES_DATA, 0f),
                     caloriesUpdatedAtMillis = dataMap.getLong(KEY_DAILY_CALORIES_UPDATED_AT_DATA, 0L),
                     heartRateBpm = dataMap.getInt(KEY_HEART_RATE_DATA, -1).takeIf { it > 0 },
-                    heartRateUpdatedAtMillis = dataMap.getLong(KEY_HEART_RATE_UPDATED_AT_DATA, 0L)
+                    heartRateUpdatedAtMillis = dataMap.getLong(KEY_HEART_RATE_UPDATED_AT_DATA, 0L),
+                    snapshotUpdatedAtMillis = dataMap.getLong(KEY_UPDATED_AT_DATA, 0L),
+                    sequenceNumber = dataMap.getLong(KEY_SEQUENCE_NUMBER_DATA, 0L)
                 )
             )
         }
@@ -35,10 +41,22 @@ class WearCommandListenerService : WearableListenerService() {
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         when (messageEvent.path) {
-            WearSyncManager.PATH_PAUSE -> AppGraph.trackingController.pauseRun()
-            WearSyncManager.PATH_RESUME -> AppGraph.trackingController.resumeRun()
-            WearSyncManager.PATH_STOP -> AppGraph.trackingController.stopRun()
-            WearSyncManager.PATH_MARK_LAP -> AppGraph.trackingController.markLap()
+            WearSyncManager.PATH_PAUSE -> {
+                AppDiagnostics.log("watch command received pause")
+                AppGraph.trackingController.pauseRun()
+            }
+            WearSyncManager.PATH_RESUME -> {
+                AppDiagnostics.log("watch command received resume")
+                AppGraph.trackingController.resumeRun()
+            }
+            WearSyncManager.PATH_STOP -> {
+                AppDiagnostics.log("watch command received stop")
+                AppGraph.trackingController.stopRun()
+            }
+            WearSyncManager.PATH_MARK_LAP -> {
+                AppDiagnostics.log("watch command received mark_lap")
+                AppGraph.trackingController.markLap()
+            }
             WearSyncManager.PATH_HEART_RATE -> {
                 val bpm = messageEvent.data.toString(Charsets.UTF_8).toIntOrNull() ?: return
                 startService(
@@ -60,5 +78,7 @@ class WearCommandListenerService : WearableListenerService() {
         const val KEY_DAILY_CALORIES_UPDATED_AT_DATA = "daily_calories_updated_at"
         const val KEY_HEART_RATE_DATA = "heart_rate_bpm"
         const val KEY_HEART_RATE_UPDATED_AT_DATA = "heart_rate_updated_at"
+        const val KEY_UPDATED_AT_DATA = "updated_at"
+        const val KEY_SEQUENCE_NUMBER_DATA = "sequence_number"
     }
 }

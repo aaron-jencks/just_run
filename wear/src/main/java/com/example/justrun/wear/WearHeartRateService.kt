@@ -67,6 +67,7 @@ class WearHeartRateService : Service(), SensorEventListener {
 
     override fun onCreate() {
         super.onCreate()
+        WearDiagnostics.log("WearHeartRateService created")
         measureClient = HealthServices.getClient(this).measureClient
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         stepCounterSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
@@ -80,6 +81,7 @@ class WearHeartRateService : Service(), SensorEventListener {
         val config = WearHealthSnapshotStore.readMonitoringConfig(applicationContext)
         val canTrackSteps = hasDailyActivityPermission(this) && stepCounterSensor != null
         if (!config.heartRateEnabled && !canTrackSteps) {
+            WearDiagnostics.log("WearHeartRateService stopping no tracking enabled")
             stopSelf()
             return START_NOT_STICKY
         }
@@ -92,10 +94,14 @@ class WearHeartRateService : Service(), SensorEventListener {
             config.backgroundHeartMonitoringEnabled &&
             backgroundHeartRateSensor != null
         if (!shouldMonitorWorkoutHeartRate && !shouldMonitorBackgroundHeartRate && !canTrackSteps) {
+            WearDiagnostics.log("WearHeartRateService stopping no permitted sensors")
             stopSelf()
             return START_NOT_STICKY
         }
         startForeground(NOTIFICATION_ID, buildNotification())
+        WearDiagnostics.log(
+            "WearHeartRateService active workoutHr=$shouldMonitorWorkoutHeartRate backgroundHr=$shouldMonitorBackgroundHeartRate steps=$canTrackSteps"
+        )
 
         if (shouldMonitorWorkoutHeartRate) {
             stopBackgroundHeartRateMonitoring()
@@ -135,6 +141,7 @@ class WearHeartRateService : Service(), SensorEventListener {
     }
 
     override fun onDestroy() {
+        WearDiagnostics.log("WearHeartRateService destroyed")
         stopWorkoutHeartRateMonitoring()
         stopBackgroundHeartRateMonitoring()
         if (isStepMonitoring) {
@@ -233,7 +240,7 @@ class WearHeartRateService : Service(), SensorEventListener {
 
     private fun accumulateCaloriesFromHeartRate(bpm: Int, nowMillis: Long) {
         val state = WearSyncStore.state.value
-        val snapshot = WearHealthSnapshotStore.read(applicationContext)
+        val snapshot = WearHealthSnapshotStore.readLocal(applicationContext)
         if (lastCalorieSampleAtMillis == 0L) {
             lastCalorieSampleAtMillis = nowMillis
             return

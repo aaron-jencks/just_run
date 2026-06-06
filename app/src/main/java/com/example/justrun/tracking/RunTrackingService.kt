@@ -23,6 +23,7 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import com.example.justrun.ActiveRunState
+import com.example.justrun.AppDiagnostics
 import com.example.justrun.AppGraph
 import com.example.justrun.LapMode
 import com.example.justrun.LapSplit
@@ -89,6 +90,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
     private var textToSpeechReady: Boolean = false
     private var cueAudioFocusRequest: AudioFocusRequest? = null
     private var cueAudioFocusHeld: Boolean = false
+    private var skipNextGpsDistanceSegment: Boolean = false
     private val recentStepTimestamps = ArrayDeque<Long>()
 
     private val locationCallback = object : LocationCallback() {
@@ -105,8 +107,17 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                 )
 
                 val lastPoint = current.routePoints.lastOrNull()
-                val accepted = shouldAcceptPoint(lastPoint, point)
+                if (current.paused) {
+                    skipNextGpsDistanceSegment = true
+                    return@let
+                }
+
                 val isMoving = isMovementSample(point, lastPoint)
+                val accepted = shouldAcceptPoint(
+                    lastPoint,
+                    point,
+                    acceptStationaryAnchor = skipNextGpsDistanceSegment && (!current.autoPaused || isMoving)
+                )
 
                 if (isMoving) {
                     lastMovementAtMillis = point.timestampMillis
@@ -115,12 +126,18 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                     stationarySinceMillis = point.timestampMillis
                 }
 
+                if (current.autoPaused && !isMoving) {
+                    return@let
+                }
+
                 if (!accepted) {
                     val shouldAutoPause = autoPauseEnabled &&
                         !current.paused &&
                         stationarySinceMillis != null &&
                         point.timestampMillis - stationarySinceMillis!! >= AUTO_PAUSE_AFTER_MS
                     if (shouldAutoPause && !current.autoPaused) {
+                        skipNextGpsDistanceSegment = true
+                        AppDiagnostics.log("run auto-paused elapsed=${current.elapsedSeconds} distanceKm=${"%.3f".format(current.distanceKm)}")
                         activeRun = current.copy(autoPaused = true)
                         speakVoiceCue("Run paused", AUTO_PAUSE_UTTERANCE_ID)
                         publishState()
@@ -129,8 +146,14 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                 }
 
                 val route = current.routePoints + point
-                val incrementalDistanceKm = if (lastPoint == null) 0f else distanceBetweenKm(lastPoint, point)
-                val elevationGain = if (lastPoint == null) 0 else maxOf(0.0, point.altitudeMeters - lastPoint.altitudeMeters).roundToInt()
+                val segment = calculateGpsSegment(
+                    previous = lastPoint,
+                    candidate = point,
+                    skipDistanceSegment = skipNextGpsDistanceSegment || current.autoPaused
+                )
+                skipNextGpsDistanceSegment = segment.skipNextDistanceSegment
+                val incrementalDistanceKm = segment.distanceKm
+                val elevationGain = segment.elevationGainM
                 val nextDistance = current.distanceKm + incrementalDistanceKm
                 val pace = if (nextDistance > 0f && current.elapsedSeconds > 0) {
                     current.elapsedSeconds / 60f / nextDistance
@@ -147,6 +170,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                     autoPaused = false
                 )
                 if (current.autoPaused) {
+                    AppDiagnostics.log("run auto-resumed elapsed=${current.elapsedSeconds} distanceKm=${"%.3f".format(current.distanceKm)}")
                     speakVoiceCue("Run resumed", AUTO_RESUME_UTTERANCE_ID)
                 }
                 val completedLapCount = maybeRecordAutomaticLaps()
@@ -166,6 +190,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
 
     override fun onCreate() {
         super.onCreate()
+        AppDiagnostics.log("RunTrackingService created")
         AppGraph.init(applicationContext)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
@@ -191,6 +216,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
 
     override fun onDestroy() {
         super.onDestroy()
+        AppDiagnostics.log("RunTrackingService destroyed")
         timerJob?.cancel()
         fusedLocationClient.removeLocationUpdates(locationCallback)
         unregisterCadenceSensor()
@@ -274,6 +300,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
         stationarySinceMillis = null
         turnAroundCueAnnounced = false
         targetReachedCueAnnounced = false
+        skipNextGpsDistanceSegment = false
         utteranceSequence = 0L
         recentStepTimestamps.clear()
 
@@ -302,6 +329,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
             routePoints = emptyList()
         )
 
+        AppDiagnostics.log("run started goal=$goal gps=$gpsEnabled hr=$heartRateEnabled")
         startForeground(NOTIFICATION_ID, buildNotification())
         startTicker()
         if (gpsEnabled) startLocationUpdates()
@@ -310,11 +338,23 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
     }
 
     private fun pauseRun(manualPause: Boolean) {
+        if (manualPause) {
+            skipNextGpsDistanceSegment = true
+            activeRun?.let {
+                AppDiagnostics.log("run paused elapsed=${it.elapsedSeconds} distanceKm=${"%.3f".format(it.distanceKm)}")
+            }
+        }
         activeRun = activeRun?.copy(paused = manualPause)
         publishState()
     }
 
     private fun resumeRun() {
+        skipNextGpsDistanceSegment = true
+        stationarySinceMillis = null
+        lastMovementAtMillis = System.currentTimeMillis()
+        activeRun?.let {
+            AppDiagnostics.log("run resumed elapsed=${it.elapsedSeconds} distanceKm=${"%.3f".format(it.distanceKm)}")
+        }
         activeRun = activeRun?.copy(paused = false, autoPaused = false)
         publishState()
     }
@@ -323,6 +363,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
         val previousLapCount = activeRun?.lapSplits?.size ?: 0
         activeRun = createLapSplit(activeRun)
         if ((activeRun?.lapSplits?.size ?: 0) > previousLapCount) {
+            AppDiagnostics.log("manual lap marked count=${activeRun?.lapSplits?.size ?: 0}")
             maybeSpeakLapProgressCue(activeRun, activeRun?.lapSplits?.size ?: previousLapCount + 1)
         }
         publishState()
@@ -338,6 +379,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
 
     private fun stopRun() {
         val run = finalizePendingLap(activeRun ?: return)
+        AppDiagnostics.log("run stopping elapsed=${run.elapsedSeconds} distanceKm=${"%.3f".format(run.distanceKm)} laps=${run.lapSplits.size}")
         val record = RunRecord(
             id = System.currentTimeMillis(),
             title = when (run.goal) {
@@ -377,7 +419,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
             while (true) {
                 delay(1000)
                 val current = activeRun ?: break
-                if (!current.paused && !current.autoPaused) {
+                if (shouldAccumulateRunTick(current)) {
                     val nextElapsed = current.elapsedSeconds + 1
                     pruneOldStepSamples(System.currentTimeMillis())
                     val calorieIncrement = caloriesPerSecond(
@@ -758,8 +800,58 @@ private fun List<Float>.evenlySampled(maxSamples: Int): List<Float> {
     }
 }
 
-internal fun shouldAcceptPoint(previous: LocationPoint?, candidate: LocationPoint): Boolean {
+internal data class GpsSegment(
+    val distanceKm: Float,
+    val elevationGainM: Int,
+    val skipNextDistanceSegment: Boolean
+)
+
+internal fun calculateGpsSegment(
+    previous: LocationPoint?,
+    candidate: LocationPoint,
+    skipDistanceSegment: Boolean
+): GpsSegment {
+    if (previous == null || skipDistanceSegment) {
+        return calculateGpsSegmentValues(
+            previousAltitudeMeters = previous?.altitudeMeters,
+            candidateAltitudeMeters = candidate.altitudeMeters,
+            distanceKm = 0f,
+            skipDistanceSegment = true
+        )
+    }
+    return calculateGpsSegmentValues(
+        previousAltitudeMeters = previous.altitudeMeters,
+        candidateAltitudeMeters = candidate.altitudeMeters,
+        distanceKm = distanceBetweenKm(previous, candidate),
+        skipDistanceSegment = false
+    )
+}
+
+internal fun calculateGpsSegmentValues(
+    previousAltitudeMeters: Double?,
+    candidateAltitudeMeters: Double,
+    distanceKm: Float,
+    skipDistanceSegment: Boolean
+): GpsSegment {
+    if (previousAltitudeMeters == null || skipDistanceSegment) {
+        return GpsSegment(distanceKm = 0f, elevationGainM = 0, skipNextDistanceSegment = false)
+    }
+    return GpsSegment(
+        distanceKm = distanceKm,
+        elevationGainM = maxOf(0.0, candidateAltitudeMeters - previousAltitudeMeters).roundToInt(),
+        skipNextDistanceSegment = false
+    )
+}
+
+internal fun shouldAccumulateRunTick(run: ActiveRunState): Boolean = !run.paused && !run.autoPaused
+
+internal fun shouldAcceptPoint(
+    previous: LocationPoint?,
+    candidate: LocationPoint,
+    acceptStationaryAnchor: Boolean = false
+): Boolean {
     if (candidate.accuracyMeters > RunTrackingService.MAX_ACCEPTED_ACCURACY_METERS) return false
+    if (acceptStationaryAnchor) return true
     if (previous == null) return true
     val distanceMeters = distanceBetweenKm(previous, candidate) * 1000f
     return distanceMeters >= RunTrackingService.MIN_ACCEPTED_DISTANCE_METERS

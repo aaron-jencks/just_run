@@ -13,6 +13,7 @@ class WearDataListenerService : WearableListenerService() {
         dataEvents.forEach { event ->
             if (event.dataItem.uri.path == PATH_DAILY_ACTIVITY_SETTINGS) {
                 val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+                WearDiagnostics.log("daily settings received")
                 val current = WearSyncStore.state.value
                 val updated = current.copy(
                     heartRateEnabled = dataMap.getBoolean(KEY_HEART_RATE_ENABLED, false),
@@ -35,6 +36,7 @@ class WearDataListenerService : WearableListenerService() {
             }
             if (event.dataItem.uri.path == PATH_DAILY_ACTIVITY_SYNC) {
                 val dataMap = DataMapItem.fromDataItem(event.dataItem).dataMap
+                WearDiagnostics.log("daily activity sync request received")
                 val current = WearSyncStore.state.value
                 val updated = current.copy(
                     heartRateEnabled = dataMap.getBoolean(KEY_HEART_RATE_ENABLED, current.heartRateEnabled),
@@ -54,18 +56,6 @@ class WearDataListenerService : WearableListenerService() {
                     dailyCalorieGoal = dataMap.getInt(KEY_DAILY_CALORIE_GOAL, 2_000),
                     weightKg = dataMap.getFloat(KEY_WEIGHT_KG, 72f),
                     ageYears = dataMap.getFloat(KEY_AGE_YEARS, 31f)
-                )
-                WearHealthSnapshotStore.mergeRemoteSnapshot(
-                    context = applicationContext,
-                    snapshot = WearDailySyncPayload(
-                        dayKey = dataMap.getString(KEY_DAILY_DAY).orEmpty(),
-                        steps = dataMap.getLong(KEY_DAILY_STEPS, 0L),
-                        stepsUpdatedAtMillis = dataMap.getLong(KEY_DAILY_STEPS_UPDATED_AT, 0L),
-                        calories = dataMap.getFloat(KEY_DAILY_CALORIES, 0f),
-                        caloriesUpdatedAtMillis = dataMap.getLong(KEY_DAILY_CALORIES_UPDATED_AT, 0L),
-                        heartRateBpm = dataMap.getInt(KEY_DAILY_HEART_RATE_BPM, -1).takeIf { it > 0 },
-                        heartRateUpdatedAtMillis = dataMap.getLong(KEY_DAILY_HEART_RATE_UPDATED_AT, 0L)
-                    )
                 )
                 syncHeartRateService()
                 WearHealthSnapshotStore.syncCurrentSnapshotToPhone(applicationContext)
@@ -96,6 +86,7 @@ class WearDataListenerService : WearableListenerService() {
             )
             WearSyncStore.publish(updated)
             if (updated.active && (!previous.active || previous.startedAtMillis != updated.startedAtMillis)) {
+                WearDiagnostics.log("live run received runId=${updated.startedAtMillis} goal=${updated.goal}")
                 openLiveRun()
             }
             syncHeartRateService()
@@ -108,6 +99,7 @@ class WearDataListenerService : WearableListenerService() {
     }
 
     private fun openLiveRun() {
+        WearDiagnostics.log("opening live run screen")
         val intent = Intent(this, WearMainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         }

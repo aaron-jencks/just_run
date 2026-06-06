@@ -102,6 +102,7 @@ import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -136,9 +137,14 @@ private enum class AppScreen {
     SETUP,
     SETTINGS,
     VOICE_CUES,
+    PRIVACY_POLICY,
     RUNNING,
     SUMMARY
 }
+
+private const val GITHUB_REPOSITORY_URL = "https://github.com/aaron-jencks/just_run"
+private const val PRIVACY_POLICY_URL = "https://github.com/aaron-jencks/just_run/blob/main/app/src/main/assets/privacy-policy.txt"
+private const val DAILY_ACTIVITY_STALE_MS = 2 * 60 * 1000L
 
 @Composable
 private fun JustRunApp() {
@@ -167,13 +173,6 @@ private fun JustRunApp() {
             screen = AppScreen.RUNNING
         }
         pendingStart = false
-    }
-    val dailyActivityPermissionsLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        if (grants.values.all { it }) {
-            AppGraph.dailyActivityRepository.startMonitoring()
-        }
     }
     val importGpxLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -217,14 +216,6 @@ private fun JustRunApp() {
 
     LaunchedEffect(activeRun?.startedAtMillis) {
         if (activeRun != null) screen = AppScreen.RUNNING
-    }
-
-    LaunchedEffect(Unit) {
-        if (!hasActivityRecognitionPermission(context)) {
-            dailyActivityPermissionsLauncher.launch(dailyActivityPermissions())
-        } else {
-            AppGraph.dailyActivityRepository.startMonitoring()
-        }
     }
 
     LaunchedEffect(trackingSession.completedRunId, runHistory) {
@@ -289,6 +280,7 @@ private fun JustRunApp() {
                 settings = settings,
                 onBack = { screen = AppScreen.HOME },
                 onOpenVoiceCues = { screen = AppScreen.VOICE_CUES },
+                onOpenPrivacyPolicy = { screen = AppScreen.PRIVACY_POLICY },
                 onSettingsChanged = {
                     AppGraph.settingsRepository.update(
                         it.copy(
@@ -307,6 +299,10 @@ private fun JustRunApp() {
                 settings = settings,
                 onBack = { screen = AppScreen.SETTINGS },
                 onSettingsChanged = { AppGraph.settingsRepository.update(it) }
+            )
+
+            AppScreen.PRIVACY_POLICY -> PrivacyPolicyScreen(
+                onBack = { screen = AppScreen.SETTINGS }
             )
 
             AppScreen.RUNNING -> if (activeRun != null) RunScreen(
@@ -530,31 +526,40 @@ private fun QuickStatusCard(
     runs: List<RunRecord>
 ) {
     val totalDistance = runs.sumOf { it.distanceKm.toDouble() }.toFloat()
-    val recentPaces = runs.mapNotNull { it.avgPaceMinPerKm }
-    val averagePace = recentPaces.takeIf { it.isNotEmpty() }?.average()?.toFloat()
+    val averageDistance = runs.takeIf { it.isNotEmpty() }?.let { totalDistance / it.size }
+    val averagePace = runs.mapNotNull { it.avgPaceMinPerKm }.takeIf { it.isNotEmpty() }?.average()?.toFloat()
+    val elevationSamples = runs.flatMap { run ->
+        run.routePoints.map { it.altitudeMeters.toFloat() }
+            .ifEmpty { run.elevationSeries }
+    }.filter { it.isFinite() }
+    val averageElevation = elevationSamples.takeIf { it.isNotEmpty() }?.average()?.toInt()
+    val maxElevation = elevationSamples.maxOrNull()?.toInt()
     Card(shape = RoundedCornerShape(24.dp)) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            MetricPill(
-                label = if (capabilities.gpsEnabled) "This week" else "Mode",
-                value = if (capabilities.gpsEnabled) formatDistance(totalDistance, unitSystem) else "Timer only",
-                modifier = Modifier.weight(1f)
-            )
-            MetricPill(
-                label = if (capabilities.gpsEnabled) "Avg pace" else "GPS",
-                value = if (capabilities.gpsEnabled) formatPace(averagePace, unitSystem) else "Off",
-                modifier = Modifier.weight(1f)
-            )
-            MetricPill(
-                label = if (capabilities.heartRateEnabled) "Heart rate" else "Runs",
-                value = if (capabilities.heartRateEnabled) "On" else runs.size.toString(),
-                modifier = Modifier.weight(1f)
-            )
+            Text("All-Time Stats", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            StatListRow("Total Distance", if (capabilities.gpsEnabled) formatDistance(totalDistance, unitSystem) else "Timer only")
+            StatListRow("Average Distance", averageDistance?.let { formatDistance(it, unitSystem) } ?: "--")
+            StatListRow("Average Pace", if (capabilities.gpsEnabled) formatPace(averagePace, unitSystem) else "Off")
+            StatListRow("Average Elevation", averageElevation?.let { formatElevation(it, unitSystem) } ?: "--")
+            StatListRow("Max Elevation", maxElevation?.let { formatElevation(it, unitSystem) } ?: "--")
         }
+    }
+}
+
+@Composable
+private fun StatListRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
     }
 }
 
@@ -569,8 +574,11 @@ private fun DailyStepsCard(
     }
     val syncedLabel = remember(snapshot.updatedAtMillis) {
         when {
-            snapshot.updatedAtMillis <= 0L -> "Waiting for step sensor"
-            else -> "Updated ${formatShortTime(snapshot.updatedAtMillis)}"
+            snapshot.updatedAtMillis <= 0L -> "Waiting for watch data"
+            System.currentTimeMillis() - snapshot.updatedAtMillis > DAILY_ACTIVITY_STALE_MS -> {
+                "Watch data stale · ${formatShortTime(snapshot.updatedAtMillis)}"
+            }
+            else -> "Watch updated ${formatShortTime(snapshot.updatedAtMillis)}"
         }
     }
 
@@ -722,6 +730,7 @@ private fun SettingsScreen(
     settings: SettingsState,
     onBack: () -> Unit,
     onOpenVoiceCues: () -> Unit,
+    onOpenPrivacyPolicy: () -> Unit,
     onSettingsChanged: (SettingsState) -> Unit
 ) {
     Scaffold(
@@ -920,6 +929,107 @@ private fun SettingsScreen(
                 checked = settings.watchMirroring,
                 onCheckedChange = { onSettingsChanged(settings.copy(watchMirroring = it)) }
             )
+            AppVersionFooter(onOpenPrivacyPolicy = onOpenPrivacyPolicy)
+        }
+    }
+}
+
+@Composable
+private fun AppVersionFooter(onOpenPrivacyPolicy: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(
+            "Just Run App",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            "V${BuildConfig.VERSION_NAME}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Bug reports:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            IconButton(onClick = { uriHandler.openUri(GITHUB_REPOSITORY_URL) }) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_github),
+                    contentDescription = "Open GitHub repository",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+        TextButton(onClick = onOpenPrivacyPolicy) {
+            Text("Privacy Policy")
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PrivacyPolicyScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
+    val policyText = remember(context) {
+        runCatching {
+            context.assets.open("privacy-policy.txt").bufferedReader().use { it.readText() }
+        }.getOrElse {
+            "Privacy policy could not be loaded."
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Privacy Policy") },
+                navigationIcon = {
+                    TextButton(onClick = onBack) { Text("Back") }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    policyText,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(18.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            OutlinedButton(
+                onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("Open on GitHub")
+            }
         }
     }
 }
@@ -2447,17 +2557,6 @@ private fun formatDurationSeconds(totalSeconds: Int): String {
 private fun hasLocationPermissions(context: android.content.Context): Boolean =
     ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-
-private fun hasActivityRecognitionPermission(context: android.content.Context): Boolean =
-    android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q ||
-        ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
-
-private fun dailyActivityPermissions(): Array<String> =
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-        arrayOf(android.Manifest.permission.ACTIVITY_RECOGNITION)
-    } else {
-        emptyArray()
-    }
 
 private fun runStartPermissions(context: android.content.Context): Array<String> {
     val permissions = mutableListOf(

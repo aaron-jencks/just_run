@@ -2,13 +2,6 @@ package com.example.justrun
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import android.os.Build
-import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,175 +9,97 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToLong
 
-class DailyActivityRepository(private val context: Context) : SensorEventListener {
+class DailyActivityRepository(private val context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("daily_activity", Context.MODE_PRIVATE)
-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val stepCounterSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-    private var monitoringRegistered = false
-    private var state = loadState()
+    private var state = loadState().resetIfNotToday(todayKey())
 
-    private val _snapshot = MutableStateFlow(state.resolved)
+    private val _snapshot = MutableStateFlow(state.snapshot)
     val snapshot: StateFlow<DailyActivitySnapshot> = _snapshot.asStateFlow()
 
-    private val _localSyncPayload = MutableStateFlow(state.toLocalSyncPayload())
-    val localSyncPayload: StateFlow<DailyActivitySyncPayload> = _localSyncPayload.asStateFlow()
-
     fun startMonitoring() {
-        if (monitoringRegistered) return
         resetIfDayRolledOver()
-        if (!hasActivityRecognitionPermission() || stepCounterSensor == null) return
-        sensorManager.registerListener(this, stepCounterSensor, SensorManager.SENSOR_DELAY_NORMAL)
-        monitoringRegistered = true
     }
 
     fun mergeExternalSnapshot(snapshot: DailyActivitySyncPayload) {
-        resetIfDayRolledOver(snapshot.dayKey)
-        state = state.copy(
-            remoteSteps = snapshot.steps,
-            remoteStepsUpdatedAtMillis = snapshot.stepsUpdatedAtMillis,
-            remoteCalories = snapshot.calories,
-            remoteCaloriesUpdatedAtMillis = snapshot.caloriesUpdatedAtMillis,
-            remoteHeartRateBpm = snapshot.heartRateBpm,
-            remoteHeartRateUpdatedAtMillis = snapshot.heartRateUpdatedAtMillis
+        val currentDayKey = todayKey()
+        val accepted = acceptWatchSnapshot(
+            current = state,
+            incoming = snapshot,
+            currentDayKey = currentDayKey
         )
-        persistAndPublish()
-    }
-
-    fun updateDerivedCalories(calories: Float, nowMillis: Long = System.currentTimeMillis()) {
-        resetIfDayRolledOver(dayKey(nowMillis))
-        val normalizedCalories = calories.coerceAtLeast(0f)
-        if (abs(state.localCalories - normalizedCalories) < 0.5f &&
-            abs(nowMillis - state.localCaloriesUpdatedAtMillis) < 30_000L
-        ) {
+        if (accepted == state) {
+            AppDiagnostics.log(
+                "daily activity watch snapshot ignored day=${snapshot.dayKey} seq=${snapshot.sequenceNumber} updated=${snapshot.snapshotUpdatedAtMillis}"
+            )
             return
         }
-        state = state.copy(
-            localCalories = normalizedCalories,
-            localCaloriesUpdatedAtMillis = nowMillis
-        )
+        state = accepted
         persistAndPublish()
-    }
-
-    override fun onSensorChanged(event: SensorEvent?) {
-        if (event?.sensor?.type != Sensor.TYPE_STEP_COUNTER) return
-        val counterValue = event.values.firstOrNull() ?: return
-        updatePhoneStepCount(counterValue, System.currentTimeMillis())
-    }
-
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
-
-    internal fun updatePhoneStepCount(counterValue: Float, nowMillis: Long) {
-        resetIfDayRolledOver(dayKey(nowMillis))
-        val baseline = when {
-            shouldResetDailyStepBaseline(state.dayKey, state.dayKey, state.stepCounterBaseline, counterValue) -> {
-                state = state.copy(stepCounterBaseline = counterValue)
-                counterValue
-            }
-            else -> state.stepCounterBaseline
-        }
-        val stepsToday = calculateStepsToday(counterValue, baseline)
-        state = state.copy(
-            stepCounterBaseline = baseline,
-            localSteps = stepsToday,
-            localStepsUpdatedAtMillis = nowMillis
+        AppDiagnostics.log(
+            "daily activity watch snapshot accepted day=${state.dayKey} seq=${state.sequenceNumber} steps=${state.snapshot.steps} calories=${"%.1f".format(state.snapshot.calories)}"
         )
-        persistAndPublish()
     }
 
-    private fun loadState(): DailyActivityState {
-        val dayKey = prefs.getString(KEY_DAY, todayKey()) ?: todayKey()
-        val loaded = DailyActivityState(
-            dayKey = dayKey,
-            localSteps = prefs.getLong(KEY_LOCAL_STEPS, 0L),
-            localStepsUpdatedAtMillis = prefs.getLong(KEY_LOCAL_STEPS_UPDATED_AT, 0L),
-            remoteSteps = prefs.getLong(KEY_REMOTE_STEPS, 0L),
-            remoteStepsUpdatedAtMillis = prefs.getLong(KEY_REMOTE_STEPS_UPDATED_AT, 0L),
-            localCalories = prefs.getFloat(KEY_LOCAL_CALORIES, 0f),
-            localCaloriesUpdatedAtMillis = prefs.getLong(KEY_LOCAL_CALORIES_UPDATED_AT, 0L),
-            remoteCalories = prefs.getFloat(KEY_REMOTE_CALORIES, 0f),
-            remoteCaloriesUpdatedAtMillis = prefs.getLong(KEY_REMOTE_CALORIES_UPDATED_AT, 0L),
-            remoteHeartRateBpm = prefs.getInt(KEY_REMOTE_HEART_RATE_BPM, -1).takeIf { it > 0 },
-            remoteHeartRateUpdatedAtMillis = prefs.getLong(KEY_REMOTE_HEART_RATE_UPDATED_AT, 0L),
-            stepCounterBaseline = prefs.getFloat(KEY_STEP_BASELINE, -1f)
+    private fun loadState(): DailyActivityState =
+        DailyActivityState(
+            dayKey = prefs.getString(KEY_DAY, todayKey()) ?: todayKey(),
+            sequenceNumber = prefs.getLong(KEY_SEQUENCE_NUMBER, 0L),
+            snapshot = DailyActivitySnapshot(
+                dayKey = prefs.getString(KEY_SNAPSHOT_DAY, prefs.getString(KEY_DAY, todayKey()) ?: todayKey()) ?: todayKey(),
+                steps = prefs.getLong(KEY_STEPS, 0L),
+                calories = prefs.getFloat(KEY_CALORIES, 0f),
+                heartRateBpm = prefs.getInt(KEY_HEART_RATE_BPM, -1).takeIf { it > 0 },
+                updatedAtMillis = prefs.getLong(KEY_UPDATED_AT, 0L),
+                heartRateUpdatedAtMillis = prefs.getLong(KEY_HEART_RATE_UPDATED_AT, 0L),
+                sequenceNumber = prefs.getLong(KEY_SEQUENCE_NUMBER, 0L)
+            )
         )
-        return loaded.withResolved(previousResolved = DailyActivitySnapshot(
-            steps = prefs.getLong(KEY_RESOLVED_STEPS, 0L),
-            calories = prefs.getFloat(KEY_RESOLVED_CALORIES, 0f),
-            heartRateBpm = prefs.getInt(KEY_RESOLVED_HEART_RATE_BPM, -1).takeIf { it > 0 },
-            updatedAtMillis = prefs.getLong(KEY_RESOLVED_UPDATED_AT, 0L)
-        ))
-    }
 
     private fun persistAndPublish() {
-        state = state.withResolved(previousResolved = state.resolved)
         prefs.edit()
             .putString(KEY_DAY, state.dayKey)
-            .putLong(KEY_LOCAL_STEPS, state.localSteps)
-            .putLong(KEY_LOCAL_STEPS_UPDATED_AT, state.localStepsUpdatedAtMillis)
-            .putLong(KEY_REMOTE_STEPS, state.remoteSteps)
-            .putLong(KEY_REMOTE_STEPS_UPDATED_AT, state.remoteStepsUpdatedAtMillis)
-            .putFloat(KEY_LOCAL_CALORIES, state.localCalories)
-            .putLong(KEY_LOCAL_CALORIES_UPDATED_AT, state.localCaloriesUpdatedAtMillis)
-            .putFloat(KEY_REMOTE_CALORIES, state.remoteCalories)
-            .putLong(KEY_REMOTE_CALORIES_UPDATED_AT, state.remoteCaloriesUpdatedAtMillis)
-            .putInt(KEY_REMOTE_HEART_RATE_BPM, state.remoteHeartRateBpm ?: -1)
-            .putLong(KEY_REMOTE_HEART_RATE_UPDATED_AT, state.remoteHeartRateUpdatedAtMillis)
-            .putFloat(KEY_STEP_BASELINE, state.stepCounterBaseline)
-            .putLong(KEY_RESOLVED_STEPS, state.resolved.steps)
-            .putFloat(KEY_RESOLVED_CALORIES, state.resolved.calories)
-            .putInt(KEY_RESOLVED_HEART_RATE_BPM, state.resolved.heartRateBpm ?: -1)
-            .putLong(KEY_RESOLVED_UPDATED_AT, state.resolved.updatedAtMillis)
+            .putString(KEY_SNAPSHOT_DAY, state.snapshot.dayKey)
+            .putLong(KEY_SEQUENCE_NUMBER, state.sequenceNumber)
+            .putLong(KEY_STEPS, state.snapshot.steps)
+            .putFloat(KEY_CALORIES, state.snapshot.calories)
+            .putInt(KEY_HEART_RATE_BPM, state.snapshot.heartRateBpm ?: -1)
+            .putLong(KEY_HEART_RATE_UPDATED_AT, state.snapshot.heartRateUpdatedAtMillis)
+            .putLong(KEY_UPDATED_AT, state.snapshot.updatedAtMillis)
             .apply()
-        _snapshot.value = state.resolved
-        _localSyncPayload.value = state.toLocalSyncPayload()
+        _snapshot.value = state.snapshot
         DailyActivityWidgetUpdater.updateAll(context)
     }
 
     private fun resetIfDayRolledOver(targetDayKey: String = todayKey()) {
-        if (state.dayKey == targetDayKey) return
-        state = DailyActivityState(
-            dayKey = targetDayKey,
-            stepCounterBaseline = -1f,
-            resolved = DailyActivitySnapshot(updatedAtMillis = System.currentTimeMillis())
-        )
+        val reset = state.resetIfNotToday(targetDayKey)
+        if (reset == state) return
+        state = reset
         persistAndPublish()
     }
 
-    private fun hasActivityRecognitionPermission(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
-            ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
-
-    private fun todayKey(): String = dayKey(System.currentTimeMillis())
-
     private companion object {
         const val KEY_DAY = "day"
-        const val KEY_LOCAL_STEPS = "local_steps"
-        const val KEY_LOCAL_STEPS_UPDATED_AT = "local_steps_updated_at"
-        const val KEY_REMOTE_STEPS = "remote_steps"
-        const val KEY_REMOTE_STEPS_UPDATED_AT = "remote_steps_updated_at"
-        const val KEY_LOCAL_CALORIES = "local_calories"
-        const val KEY_LOCAL_CALORIES_UPDATED_AT = "local_calories_updated_at"
-        const val KEY_REMOTE_CALORIES = "remote_calories"
-        const val KEY_REMOTE_CALORIES_UPDATED_AT = "remote_calories_updated_at"
-        const val KEY_REMOTE_HEART_RATE_BPM = "remote_heart_rate_bpm"
-        const val KEY_REMOTE_HEART_RATE_UPDATED_AT = "remote_heart_rate_updated_at"
-        const val KEY_STEP_BASELINE = "step_counter_baseline"
-        const val KEY_RESOLVED_STEPS = "resolved_steps"
-        const val KEY_RESOLVED_CALORIES = "resolved_calories"
-        const val KEY_RESOLVED_HEART_RATE_BPM = "resolved_heart_rate_bpm"
-        const val KEY_RESOLVED_UPDATED_AT = "resolved_updated_at"
+        const val KEY_SNAPSHOT_DAY = "snapshot_day"
+        const val KEY_SEQUENCE_NUMBER = "sequence_number"
+        const val KEY_STEPS = "watch_steps"
+        const val KEY_CALORIES = "watch_calories"
+        const val KEY_HEART_RATE_BPM = "watch_heart_rate_bpm"
+        const val KEY_HEART_RATE_UPDATED_AT = "watch_heart_rate_updated_at"
+        const val KEY_UPDATED_AT = "watch_updated_at"
     }
 }
 
 data class DailyActivitySnapshot(
+    val dayKey: String = dayKey(System.currentTimeMillis()),
     val steps: Long = 0L,
     val calories: Float = 0f,
     val heartRateBpm: Int? = null,
-    val updatedAtMillis: Long = 0L
+    val updatedAtMillis: Long = 0L,
+    val heartRateUpdatedAtMillis: Long = 0L,
+    val sequenceNumber: Long = 0L
 )
 
 data class DailyActivitySyncPayload(
@@ -194,160 +109,58 @@ data class DailyActivitySyncPayload(
     val calories: Float,
     val caloriesUpdatedAtMillis: Long,
     val heartRateBpm: Int?,
-    val heartRateUpdatedAtMillis: Long
+    val heartRateUpdatedAtMillis: Long,
+    val snapshotUpdatedAtMillis: Long = maxOf(stepsUpdatedAtMillis, caloriesUpdatedAtMillis, heartRateUpdatedAtMillis),
+    val sequenceNumber: Long = 0L
 )
 
-private data class DailyActivityState(
+internal data class DailyActivityState(
     val dayKey: String,
-    val localSteps: Long = 0L,
-    val localStepsUpdatedAtMillis: Long = 0L,
-    val remoteSteps: Long = 0L,
-    val remoteStepsUpdatedAtMillis: Long = 0L,
-    val localCalories: Float = 0f,
-    val localCaloriesUpdatedAtMillis: Long = 0L,
-    val remoteCalories: Float = 0f,
-    val remoteCaloriesUpdatedAtMillis: Long = 0L,
-    val remoteHeartRateBpm: Int? = null,
-    val remoteHeartRateUpdatedAtMillis: Long = 0L,
-    val stepCounterBaseline: Float = -1f,
-    val resolved: DailyActivitySnapshot = DailyActivitySnapshot()
+    val sequenceNumber: Long = 0L,
+    val snapshot: DailyActivitySnapshot = DailyActivitySnapshot(dayKey = dayKey)
 ) {
-    fun toLocalSyncPayload(): DailyActivitySyncPayload =
-        DailyActivitySyncPayload(
-            dayKey = dayKey,
-            steps = localSteps,
-            stepsUpdatedAtMillis = localStepsUpdatedAtMillis,
-            calories = localCalories,
-            caloriesUpdatedAtMillis = localCaloriesUpdatedAtMillis,
-            heartRateBpm = null,
-            heartRateUpdatedAtMillis = 0L
-        )
+    fun resetIfNotToday(todayKey: String): DailyActivityState =
+        if (dayKey == todayKey && snapshot.dayKey == todayKey) {
+            this
+        } else {
+            DailyActivityState(dayKey = todayKey, snapshot = DailyActivitySnapshot(dayKey = todayKey))
+        }
+}
 
-    fun withResolved(previousResolved: DailyActivitySnapshot): DailyActivityState {
-        val resolvedSteps = resolveDailyMetric(
-            localValue = localSteps,
-            localUpdatedAtMillis = localStepsUpdatedAtMillis,
-            remoteValue = remoteSteps,
-            remoteUpdatedAtMillis = remoteStepsUpdatedAtMillis,
-            preferRemoteWhenClose = true,
-            previousResolved = previousResolved.steps
-        )
-        val resolvedCalories = resolveDailyMetric(
-            localValue = localCalories,
-            localUpdatedAtMillis = localCaloriesUpdatedAtMillis,
-            remoteValue = remoteCalories,
-            remoteUpdatedAtMillis = remoteCaloriesUpdatedAtMillis,
-            preferRemoteWhenClose = true,
-            previousResolved = previousResolved.calories
-        )
-        val resolvedHeartRate = resolveHeartRate(
-            remoteHeartRateBpm = remoteHeartRateBpm,
-            remoteHeartRateUpdatedAtMillis = remoteHeartRateUpdatedAtMillis
-        )
-        return copy(
-            resolved = DailyActivitySnapshot(
-                steps = resolvedSteps.value,
-                calories = resolvedCalories.value,
-                heartRateBpm = resolvedHeartRate.value,
-                updatedAtMillis = maxOf(
-                    resolvedSteps.updatedAtMillis,
-                    resolvedCalories.updatedAtMillis,
-                    resolvedHeartRate.updatedAtMillis
-                )
-            )
-        )
+internal fun acceptWatchSnapshot(
+    current: DailyActivityState,
+    incoming: DailyActivitySyncPayload,
+    currentDayKey: String
+): DailyActivityState {
+    if (incoming.dayKey != currentDayKey) return current.resetIfNotToday(currentDayKey)
+    val normalizedCurrent = current.resetIfNotToday(currentDayKey)
+    val incomingUpdatedAt = incoming.snapshotUpdatedAtMillis.takeIf { it > 0L } ?: maxOf(
+        incoming.stepsUpdatedAtMillis,
+        incoming.caloriesUpdatedAtMillis,
+        incoming.heartRateUpdatedAtMillis
+    )
+    val incomingSequence = incoming.sequenceNumber
+    val hasSequence = incomingSequence > 0L && normalizedCurrent.sequenceNumber > 0L
+    val shouldAccept = when {
+        hasSequence && incomingSequence > normalizedCurrent.sequenceNumber -> true
+        hasSequence && incomingSequence <= normalizedCurrent.sequenceNumber -> false
+        incomingUpdatedAt >= normalizedCurrent.snapshot.updatedAtMillis -> true
+        else -> false
     }
-}
-
-private data class ResolvedMetric<T>(
-    val value: T,
-    val updatedAtMillis: Long
-)
-
-private fun resolveHeartRate(
-    remoteHeartRateBpm: Int?,
-    remoteHeartRateUpdatedAtMillis: Long
-): ResolvedMetric<Int?> =
-    ResolvedMetric(remoteHeartRateBpm, remoteHeartRateUpdatedAtMillis)
-
-private fun resolveDailyMetric(
-    localValue: Long,
-    localUpdatedAtMillis: Long,
-    remoteValue: Long,
-    remoteUpdatedAtMillis: Long,
-    preferRemoteWhenClose: Boolean,
-    previousResolved: Long
-): ResolvedMetric<Long> {
-    val chosen = chooseMetricCandidate(
-        localValue = localValue,
-        localUpdatedAtMillis = localUpdatedAtMillis,
-        remoteValue = remoteValue,
-        remoteUpdatedAtMillis = remoteUpdatedAtMillis,
-        preferRemoteWhenClose = preferRemoteWhenClose
+    if (!shouldAccept) return normalizedCurrent
+    return DailyActivityState(
+        dayKey = currentDayKey,
+        sequenceNumber = incomingSequence,
+        snapshot = DailyActivitySnapshot(
+            dayKey = currentDayKey,
+            steps = incoming.steps.coerceAtLeast(0L),
+            calories = incoming.calories.coerceAtLeast(0f),
+            heartRateBpm = incoming.heartRateBpm,
+            heartRateUpdatedAtMillis = incoming.heartRateUpdatedAtMillis,
+            updatedAtMillis = incomingUpdatedAt,
+            sequenceNumber = incomingSequence
+        )
     )
-    return ResolvedMetric(
-        value = maxOf(previousResolved, chosen.value),
-        updatedAtMillis = chosen.updatedAtMillis
-    )
-}
-
-private fun resolveDailyMetric(
-    localValue: Float,
-    localUpdatedAtMillis: Long,
-    remoteValue: Float,
-    remoteUpdatedAtMillis: Long,
-    preferRemoteWhenClose: Boolean,
-    previousResolved: Float
-): ResolvedMetric<Float> {
-    val chosen = chooseMetricCandidate(
-        localValue = localValue,
-        localUpdatedAtMillis = localUpdatedAtMillis,
-        remoteValue = remoteValue,
-        remoteUpdatedAtMillis = remoteUpdatedAtMillis,
-        preferRemoteWhenClose = preferRemoteWhenClose
-    )
-    return ResolvedMetric(
-        value = maxOf(previousResolved, chosen.value),
-        updatedAtMillis = chosen.updatedAtMillis
-    )
-}
-
-private fun chooseMetricCandidate(
-    localValue: Long,
-    localUpdatedAtMillis: Long,
-    remoteValue: Long,
-    remoteUpdatedAtMillis: Long,
-    preferRemoteWhenClose: Boolean
-): ResolvedMetric<Long> {
-    if (localUpdatedAtMillis <= 0L) return ResolvedMetric(remoteValue, remoteUpdatedAtMillis)
-    if (remoteUpdatedAtMillis <= 0L) return ResolvedMetric(localValue, localUpdatedAtMillis)
-    return if (abs(localUpdatedAtMillis - remoteUpdatedAtMillis) <= SIMILAR_FRESHNESS_MS) {
-        if (preferRemoteWhenClose) ResolvedMetric(remoteValue, remoteUpdatedAtMillis)
-        else ResolvedMetric(localValue, localUpdatedAtMillis)
-    } else if (remoteUpdatedAtMillis > localUpdatedAtMillis) {
-        ResolvedMetric(remoteValue, remoteUpdatedAtMillis)
-    } else {
-        ResolvedMetric(localValue, localUpdatedAtMillis)
-    }
-}
-
-private fun chooseMetricCandidate(
-    localValue: Float,
-    localUpdatedAtMillis: Long,
-    remoteValue: Float,
-    remoteUpdatedAtMillis: Long,
-    preferRemoteWhenClose: Boolean
-): ResolvedMetric<Float> {
-    if (localUpdatedAtMillis <= 0L) return ResolvedMetric(remoteValue, remoteUpdatedAtMillis)
-    if (remoteUpdatedAtMillis <= 0L) return ResolvedMetric(localValue, localUpdatedAtMillis)
-    return if (abs(localUpdatedAtMillis - remoteUpdatedAtMillis) <= SIMILAR_FRESHNESS_MS) {
-        if (preferRemoteWhenClose) ResolvedMetric(remoteValue, remoteUpdatedAtMillis)
-        else ResolvedMetric(localValue, localUpdatedAtMillis)
-    } else if (remoteUpdatedAtMillis > localUpdatedAtMillis) {
-        ResolvedMetric(remoteValue, remoteUpdatedAtMillis)
-    } else {
-        ResolvedMetric(localValue, localUpdatedAtMillis)
-    }
 }
 
 internal fun shouldResetDailyStepBaseline(
@@ -380,4 +193,4 @@ internal fun secondsSinceLocalMidnight(nowMillis: Long): Int {
 internal fun dayKey(timestampMillis: Long): String =
     SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(timestampMillis))
 
-private const val SIMILAR_FRESHNESS_MS = 90_000L
+private fun todayKey(): String = dayKey(System.currentTimeMillis())

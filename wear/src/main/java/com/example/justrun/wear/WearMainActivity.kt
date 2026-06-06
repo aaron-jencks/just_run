@@ -50,6 +50,7 @@ import kotlinx.coroutines.launch
 class WearMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WearDiagnostics.log("WearMainActivity created")
         setContent {
             JustRunWearTheme {
                 Surface(
@@ -113,6 +114,7 @@ class WearMainActivity : ComponentActivity() {
     }
 
     private fun sendCommand(path: String) {
+        WearDiagnostics.log("watch command sent path=$path")
         CoroutineScope(Dispatchers.IO).launch {
             val nodes = runCatching { Tasks.await(Wearable.getNodeClient(applicationContext).connectedNodes) }.getOrDefault(emptyList())
             nodes.forEach { node ->
