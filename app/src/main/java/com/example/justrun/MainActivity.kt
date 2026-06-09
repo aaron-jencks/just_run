@@ -931,7 +931,33 @@ private fun SettingsScreen(
                 checked = settings.watchMirroring,
                 onCheckedChange = { onSettingsChanged(settings.copy(watchMirroring = it)) }
             )
+            HealthDisclaimerCard()
             AppVersionFooter(onOpenPrivacyPolicy = onOpenPrivacyPolicy)
+        }
+    }
+}
+
+@Composable
+private fun HealthDisclaimerCard() {
+    Card(
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                "Personal fitness use only",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "Just Run is not a medical device and does not provide medical advice, diagnosis, treatment, or emergency guidance. Activity, heart-rate, calorie, pace, and distance values are estimates for personal fitness tracking.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
