@@ -11,7 +11,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
-        android:name=".JustRunApplication"
+        android:name="com.example.justrun.JustRunApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -21,18 +21,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.JustRun">
         <service
-            android:name=".tracking.RunTrackingService"
+            android:name="com.example.justrun.tracking.RunTrackingService"
             android:exported="false"
             android:foregroundServiceType="location" />
         <service
-            android:name=".wear.WearCommandListenerService"
+            android:name="com.example.justrun.wear.WearCommandListenerService"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.google.android.gms.wearable.BIND_LISTENER" />
             </intent-filter>
         </service>
         <receiver
-            android:name=".StepsProgressWidgetProvider"
+            android:name="com.example.justrun.StepsProgressWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -42,7 +42,7 @@
                 android:resource="@xml/widget_steps_progress_info" />
         </receiver>
         <receiver
-            android:name=".StepsTextWidgetProvider"
+            android:name="com.example.justrun.StepsTextWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -52,7 +52,7 @@
                 android:resource="@xml/widget_steps_text_info" />
         </receiver>
         <receiver
-            android:name=".CaloriesProgressWidgetProvider"
+            android:name="com.example.justrun.CaloriesProgressWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -62,7 +62,7 @@
                 android:resource="@xml/widget_calories_progress_info" />
         </receiver>
         <receiver
-            android:name=".CaloriesTextWidgetProvider"
+            android:name="com.example.justrun.CaloriesTextWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -73,7 +73,7 @@
         </receiver>
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.justrun.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.JustRun">

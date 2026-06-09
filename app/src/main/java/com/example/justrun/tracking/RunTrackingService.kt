@@ -30,7 +30,7 @@ import com.example.justrun.LapSplit
 import com.example.justrun.LapTrigger
 import com.example.justrun.LocationPoint
 import com.example.justrun.MainActivity
-import com.example.justrun.R
+import com.aaronjencks.justrun.R
 import com.example.justrun.RunGoal
 import com.example.justrun.RunRecord
 import com.example.justrun.TrackingSession
@@ -91,6 +91,7 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
     private var cueAudioFocusRequest: AudioFocusRequest? = null
     private var cueAudioFocusHeld: Boolean = false
     private var skipNextGpsDistanceSegment: Boolean = false
+    private var manualResumeGraceUntilMillis: Long = 0L
     private val recentStepTimestamps = ArrayDeque<Long>()
 
     private val locationCallback = object : LocationCallback() {
@@ -112,7 +113,8 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                     return@let
                 }
 
-                val isMoving = isMovementSample(point, lastPoint)
+                val movement = movementSample(point, lastPoint)
+                val isMoving = movement.moving
                 val accepted = shouldAcceptPoint(
                     lastPoint,
                     point,
@@ -131,13 +133,21 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                 }
 
                 if (!accepted) {
-                    val shouldAutoPause = autoPauseEnabled &&
-                        !current.paused &&
-                        stationarySinceMillis != null &&
-                        point.timestampMillis - stationarySinceMillis!! >= AUTO_PAUSE_AFTER_MS
+                    val shouldAutoPause = shouldAutoPauseForStationarySample(
+                        autoPauseEnabled = autoPauseEnabled,
+                        paused = current.paused,
+                        alreadyAutoPaused = current.autoPaused,
+                        stationarySinceMillis = stationarySinceMillis,
+                        nowMillis = point.timestampMillis,
+                        manualResumeGraceUntilMillis = manualResumeGraceUntilMillis
+                    )
                     if (shouldAutoPause && !current.autoPaused) {
                         skipNextGpsDistanceSegment = true
-                        AppDiagnostics.log("run auto-paused elapsed=${current.elapsedSeconds} distanceKm=${"%.3f".format(current.distanceKm)}")
+                        AppDiagnostics.log(
+                            "run auto-paused elapsed=${current.elapsedSeconds} distanceKm=${"%.3f".format(current.distanceKm)} " +
+                                "speed=${"%.2f".format(point.speedMetersPerSecond)} accuracy=${"%.1f".format(point.accuracyMeters)} " +
+                                "deltaM=${"%.1f".format(movement.distanceMeters)} stationaryMs=${point.timestampMillis - (stationarySinceMillis ?: point.timestampMillis)}"
+                        )
                         activeRun = current.copy(autoPaused = true)
                         speakVoiceCue("Run paused", AUTO_PAUSE_UTTERANCE_ID)
                         publishState()
@@ -170,7 +180,11 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
                     autoPaused = false
                 )
                 if (current.autoPaused) {
-                    AppDiagnostics.log("run auto-resumed elapsed=${current.elapsedSeconds} distanceKm=${"%.3f".format(current.distanceKm)}")
+                    AppDiagnostics.log(
+                        "run auto-resumed elapsed=${current.elapsedSeconds} distanceKm=${"%.3f".format(current.distanceKm)} " +
+                            "speed=${"%.2f".format(point.speedMetersPerSecond)} accuracy=${"%.1f".format(point.accuracyMeters)} " +
+                            "deltaM=${"%.1f".format(movement.distanceMeters)}"
+                    )
                     speakVoiceCue("Run resumed", AUTO_RESUME_UTTERANCE_ID)
                 }
                 val completedLapCount = maybeRecordAutomaticLaps()
@@ -349,9 +363,11 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
     }
 
     private fun resumeRun() {
+        val now = System.currentTimeMillis()
         skipNextGpsDistanceSegment = true
         stationarySinceMillis = null
-        lastMovementAtMillis = System.currentTimeMillis()
+        lastMovementAtMillis = now
+        manualResumeGraceUntilMillis = now + MANUAL_RESUME_AUTO_PAUSE_GRACE_MS
         activeRun?.let {
             AppDiagnostics.log("run resumed elapsed=${it.elapsedSeconds} distanceKm=${"%.3f".format(it.distanceKm)}")
         }
@@ -701,12 +717,12 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
     }
 
     companion object {
-        const val ACTION_START = "com.example.justrun.action.START"
-        const val ACTION_PAUSE = "com.example.justrun.action.PAUSE"
-        const val ACTION_RESUME = "com.example.justrun.action.RESUME"
-        const val ACTION_MARK_LAP = "com.example.justrun.action.MARK_LAP"
-        const val ACTION_UPDATE_HEART_RATE = "com.example.justrun.action.UPDATE_HEART_RATE"
-        const val ACTION_STOP = "com.example.justrun.action.STOP"
+        const val ACTION_START = "com.aaronjencks.justrun.action.START"
+        const val ACTION_PAUSE = "com.aaronjencks.justrun.action.PAUSE"
+        const val ACTION_RESUME = "com.aaronjencks.justrun.action.RESUME"
+        const val ACTION_MARK_LAP = "com.aaronjencks.justrun.action.MARK_LAP"
+        const val ACTION_UPDATE_HEART_RATE = "com.aaronjencks.justrun.action.UPDATE_HEART_RATE"
+        const val ACTION_STOP = "com.aaronjencks.justrun.action.STOP"
         const val EXTRA_GOAL = "goal"
         const val EXTRA_DISTANCE_GOAL_KM = "distance_goal_km"
         const val EXTRA_DURATION_GOAL_SECONDS = "duration_goal_seconds"
@@ -739,7 +755,8 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
         internal const val MIN_ACCEPTED_DISTANCE_METERS = 5f
         internal const val MAX_ACCEPTED_ACCURACY_METERS = 25f
         internal const val AUTO_PAUSE_AFTER_MS = 12_000L
-        internal const val AUTO_PAUSE_MIN_MOVING_SPEED_METERS_PER_SECOND = 1.2f
+        internal const val MANUAL_RESUME_AUTO_PAUSE_GRACE_MS = 30_000L
+        internal const val AUTO_PAUSE_MIN_MOVING_SPEED_METERS_PER_SECOND = 0.35f
         internal const val CADENCE_WINDOW_MS = 20_000L
         private const val DEFAULT_VOICE_CUE_TIME_INTERVAL_SECONDS = 5 * 60
         private const val DEFAULT_VOICE_CUE_DISTANCE_INTERVAL_KM = 1f
@@ -747,6 +764,12 @@ class RunTrackingService : Service(), TextToSpeech.OnInitListener, SensorEventLi
         private const val KM_PER_MILE = 1.60934f
     }
 }
+
+internal data class MovementSample(
+    val moving: Boolean,
+    val distanceMeters: Float,
+    val speedMetersPerSecond: Float
+)
 
 private fun distanceBetweenKm(start: LocationPoint, end: LocationPoint): Float {
     val result = FloatArray(1)
@@ -845,6 +868,21 @@ internal fun calculateGpsSegmentValues(
 
 internal fun shouldAccumulateRunTick(run: ActiveRunState): Boolean = !run.paused && !run.autoPaused
 
+internal fun shouldAutoPauseForStationarySample(
+    autoPauseEnabled: Boolean,
+    paused: Boolean,
+    alreadyAutoPaused: Boolean,
+    stationarySinceMillis: Long?,
+    nowMillis: Long,
+    manualResumeGraceUntilMillis: Long
+): Boolean =
+    autoPauseEnabled &&
+        !paused &&
+        !alreadyAutoPaused &&
+        nowMillis >= manualResumeGraceUntilMillis &&
+        stationarySinceMillis != null &&
+        nowMillis - stationarySinceMillis >= RunTrackingService.AUTO_PAUSE_AFTER_MS
+
 internal fun shouldAcceptPoint(
     previous: LocationPoint?,
     candidate: LocationPoint,
@@ -858,12 +896,55 @@ internal fun shouldAcceptPoint(
 }
 
 internal fun isMovementSample(candidate: LocationPoint, previous: LocationPoint?): Boolean {
-    if (candidate.accuracyMeters > RunTrackingService.MAX_ACCEPTED_ACCURACY_METERS) return false
-    if (candidate.speedMetersPerSecond >= RunTrackingService.AUTO_PAUSE_MIN_MOVING_SPEED_METERS_PER_SECOND) return true
-    if (previous == null) return false
+    return movementSample(candidate, previous).moving
+}
+
+internal fun movementSample(candidate: LocationPoint, previous: LocationPoint?): MovementSample {
+    if (candidate.accuracyMeters > RunTrackingService.MAX_ACCEPTED_ACCURACY_METERS) {
+        return MovementSample(moving = false, distanceMeters = 0f, speedMetersPerSecond = candidate.speedMetersPerSecond)
+    }
+    if (candidate.speedMetersPerSecond >= RunTrackingService.AUTO_PAUSE_MIN_MOVING_SPEED_METERS_PER_SECOND) {
+        return MovementSample(moving = true, distanceMeters = 0f, speedMetersPerSecond = candidate.speedMetersPerSecond)
+    }
+    if (previous == null) {
+        return MovementSample(moving = false, distanceMeters = 0f, speedMetersPerSecond = candidate.speedMetersPerSecond)
+    }
     val distanceMeters = distanceBetweenKm(previous, candidate) * 1000f
     val durationSeconds = ((candidate.timestampMillis - previous.timestampMillis) / 1000f).coerceAtLeast(1f)
-    return (distanceMeters / durationSeconds) >= RunTrackingService.AUTO_PAUSE_MIN_MOVING_SPEED_METERS_PER_SECOND
+    return movementSampleFromValues(
+        accuracyMeters = candidate.accuracyMeters,
+        reportedSpeedMetersPerSecond = candidate.speedMetersPerSecond,
+        distanceMeters = distanceMeters,
+        durationSeconds = durationSeconds,
+        hasPreviousPoint = true
+    )
+}
+
+internal fun movementSampleFromValues(
+    accuracyMeters: Float,
+    reportedSpeedMetersPerSecond: Float,
+    distanceMeters: Float,
+    durationSeconds: Float,
+    hasPreviousPoint: Boolean
+): MovementSample {
+    if (accuracyMeters > RunTrackingService.MAX_ACCEPTED_ACCURACY_METERS) {
+        return MovementSample(moving = false, distanceMeters = 0f, speedMetersPerSecond = reportedSpeedMetersPerSecond)
+    }
+    if (reportedSpeedMetersPerSecond >= RunTrackingService.AUTO_PAUSE_MIN_MOVING_SPEED_METERS_PER_SECOND) {
+        return MovementSample(moving = true, distanceMeters = distanceMeters, speedMetersPerSecond = reportedSpeedMetersPerSecond)
+    }
+    if (!hasPreviousPoint) {
+        return MovementSample(moving = false, distanceMeters = distanceMeters, speedMetersPerSecond = reportedSpeedMetersPerSecond)
+    }
+    if (distanceMeters >= RunTrackingService.MIN_ACCEPTED_DISTANCE_METERS) {
+        return MovementSample(moving = true, distanceMeters = distanceMeters, speedMetersPerSecond = reportedSpeedMetersPerSecond)
+    }
+    val inferredSpeed = distanceMeters / durationSeconds
+    return MovementSample(
+        moving = inferredSpeed >= RunTrackingService.AUTO_PAUSE_MIN_MOVING_SPEED_METERS_PER_SECOND,
+        distanceMeters = distanceMeters,
+        speedMetersPerSecond = maxOf(reportedSpeedMetersPerSecond, inferredSpeed)
+    )
 }
 
 internal fun caloriesPerSecond(

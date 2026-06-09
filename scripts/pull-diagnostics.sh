@@ -12,7 +12,7 @@ fi
 PHONE_SERIAL="${PHONE_SERIAL:-}"
 WATCH_SERIAL="${WATCH_SERIAL:-}"
 TARGET="both"
-PACKAGE_NAME="com.example.justrun"
+PACKAGE_NAME="com.aaronjencks.justrun"
 REMOTE_DIR="/sdcard/Android/data/${PACKAGE_NAME}/files/diagnostics"
 OUTPUT_ROOT="${ROOT_DIR}/diagnostics"
 

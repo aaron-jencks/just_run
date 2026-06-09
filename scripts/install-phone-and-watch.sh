@@ -149,7 +149,7 @@ if [[ "$TARGET" == "phone" || "$TARGET" == "both" ]]; then
   echo "Installing phone app on $PHONE_SERIAL"
   adb -s "$PHONE_SERIAL" install --no-streaming -r "$PHONE_APK"
   echo "Launching phone app"
-  adb -s "$PHONE_SERIAL" shell am start -n com.example.justrun/.MainActivity >/dev/null
+  adb -s "$PHONE_SERIAL" shell am start -n com.aaronjencks.justrun/com.example.justrun.MainActivity >/dev/null
 fi
 
 if [[ "$TARGET" == "watch" || "$TARGET" == "both" ]]; then
@@ -157,7 +157,7 @@ if [[ "$TARGET" == "watch" || "$TARGET" == "both" ]]; then
   echo "Installing watch app on $WATCH_SERIAL"
   adb -s "$WATCH_SERIAL" install --no-streaming -r "$WATCH_APK"
   echo "Launching watch app"
-  adb -s "$WATCH_SERIAL" shell am start -n com.example.justrun/com.example.justrun.wear.WearMainActivity >/dev/null
+  adb -s "$WATCH_SERIAL" shell am start -n com.aaronjencks.justrun/com.example.justrun.wear.WearMainActivity >/dev/null
 fi
 
 if [[ "$DISCONNECT_WIFI_AFTER_INSTALL" == "true" ]]; then

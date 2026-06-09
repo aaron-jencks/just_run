@@ -2,7 +2,7 @@ package com.example.justrun.wear
 
 import android.graphics.drawable.Icon
 import android.os.Build
-import com.example.justrun.R
+import com.aaronjencks.justrun.R
 import androidx.wear.watchface.complications.data.ComplicationData
 import androidx.wear.watchface.complications.data.ComplicationType
 import androidx.wear.watchface.complications.data.GoalProgressComplicationData

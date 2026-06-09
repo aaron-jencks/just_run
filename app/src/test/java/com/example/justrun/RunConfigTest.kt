@@ -10,9 +10,11 @@ import com.example.justrun.tracking.calculateCadenceSpm
 import com.example.justrun.tracking.crossedDistanceCueBoundary
 import com.example.justrun.tracking.crossedTimeCueBoundary
 import com.example.justrun.tracking.isMovementSample
+import com.example.justrun.tracking.movementSampleFromValues
 import com.example.justrun.tracking.calculateGpsSegment
 import com.example.justrun.tracking.calculateGpsSegmentValues
 import com.example.justrun.tracking.shouldAcceptPoint
+import com.example.justrun.tracking.shouldAutoPauseForStationarySample
 import com.example.justrun.tracking.shouldAccumulateRunTick
 import com.example.justrun.tracking.ProgressCueEvent
 import com.example.justrun.DailyActivityWidgetUpdater.progressCycle
@@ -836,6 +838,72 @@ class RunConfigTest {
         )
 
         assertTrue(isMovementSample(candidate, previous))
+    }
+
+    @Test
+    fun `movement sample treats walking speed as movement`() {
+        val candidate = LocationPoint(
+            timestampMillis = 1_000L,
+            latitude = 40.0,
+            longitude = -74.0,
+            altitudeMeters = 10.0,
+            accuracyMeters = 5f,
+            speedMetersPerSecond = 0.45f
+        )
+
+        assertTrue(isMovementSample(candidate, previous = null))
+    }
+
+    @Test
+    fun `movement sample treats accepted distance delta as movement`() {
+        val movement = movementSampleFromValues(
+            accuracyMeters = 5f,
+            reportedSpeedMetersPerSecond = 0f,
+            distanceMeters = 6f,
+            durationSeconds = 20f,
+            hasPreviousPoint = true
+        )
+
+        assertTrue(movement.moving)
+        assertTrue(movement.distanceMeters >= 5f)
+    }
+
+    @Test
+    fun `movement sample rejects poor accuracy even with walking speed`() {
+        val candidate = LocationPoint(
+            timestampMillis = 1_000L,
+            latitude = 40.0,
+            longitude = -74.0,
+            altitudeMeters = 10.0,
+            accuracyMeters = 100f,
+            speedMetersPerSecond = 0.45f
+        )
+
+        assertFalse(isMovementSample(candidate, previous = null))
+    }
+
+    @Test
+    fun `manual resume grace suppresses auto pause until grace expires`() {
+        assertFalse(
+            shouldAutoPauseForStationarySample(
+                autoPauseEnabled = true,
+                paused = false,
+                alreadyAutoPaused = false,
+                stationarySinceMillis = 0L,
+                nowMillis = 20_000L,
+                manualResumeGraceUntilMillis = 30_000L
+            )
+        )
+        assertTrue(
+            shouldAutoPauseForStationarySample(
+                autoPauseEnabled = true,
+                paused = false,
+                alreadyAutoPaused = false,
+                stationarySinceMillis = 0L,
+                nowMillis = 31_000L,
+                manualResumeGraceUntilMillis = 30_000L
+            )
+        )
     }
 
     @Test

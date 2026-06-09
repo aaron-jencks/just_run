@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.justrun"
+    namespace = "com.aaronjencks.justrun"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.justrun"
+        applicationId = "com.aaronjencks.justrun"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

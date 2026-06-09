@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import com.aaronjencks.justrun.R
 import kotlin.math.roundToInt
 
 enum class DailyMetricType {

@@ -5,7 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Process
 import android.util.Log
-import com.example.justrun.BuildConfig
+import com.aaronjencks.justrun.BuildConfig
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date

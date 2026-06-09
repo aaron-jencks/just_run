@@ -4,7 +4,7 @@ set -euo pipefail
 PHONE_SERIAL="${PHONE_SERIAL:-}"
 WATCH_SERIAL="${WATCH_SERIAL:-}"
 DURATION_SECONDS=90
-PACKAGE_NAME="com.example.justrun"
+PACKAGE_NAME="com.aaronjencks.justrun"
 
 usage() {
   cat <<'EOF'
@@ -73,8 +73,8 @@ adb -s "$PHONE_SERIAL" shell rm -f "/sdcard/Android/data/${PACKAGE_NAME}/files/d
 adb -s "$WATCH_SERIAL" shell rm -f "/sdcard/Android/data/${PACKAGE_NAME}/files/diagnostics/activity.log" 2>/dev/null || true
 
 echo "Starting Just Run on both devices..."
-adb -s "$PHONE_SERIAL" shell am start -n "${PACKAGE_NAME}/.MainActivity" >/dev/null 2>&1 || true
-adb -s "$WATCH_SERIAL" shell am start -n "${PACKAGE_NAME}/${PACKAGE_NAME}.wear.WearMainActivity" >/dev/null 2>&1 || true
+adb -s "$PHONE_SERIAL" shell am start -n "${PACKAGE_NAME}/com.example.justrun.MainActivity" >/dev/null 2>&1 || true
+adb -s "$WATCH_SERIAL" shell am start -n "${PACKAGE_NAME}/com.example.justrun.wear.WearMainActivity" >/dev/null 2>&1 || true
 
 echo "Waiting ${DURATION_SECONDS}s for daily activity handshake..."
 sleep "$DURATION_SECONDS"

@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.widget.Toast
+import com.aaronjencks.justrun.BuildConfig
+import com.aaronjencks.justrun.R
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
