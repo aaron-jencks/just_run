@@ -10,6 +10,9 @@ object AppGraph {
     lateinit var settingsRepository: SettingsRepository
         private set
 
+    lateinit var runSetupRepository: RunSetupRepository
+        private set
+
     lateinit var runRepository: RunRepository
         private set
 
@@ -26,6 +29,7 @@ object AppGraph {
             val appContext = context.applicationContext
             AppDiagnostics.log("AppGraph init")
             settingsRepository = SettingsRepository(appContext)
+            runSetupRepository = RunSetupRepository(appContext)
             runRepository = RunRepository(appContext)
             dailyActivityRepository = DailyActivityRepository(appContext)
             dailyActivityRepository.startMonitoring()

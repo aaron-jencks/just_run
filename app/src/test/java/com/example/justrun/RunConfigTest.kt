@@ -24,10 +24,59 @@ import com.example.justrun.shouldResetDailyStepBaseline
 import com.example.justrun.secondsSinceLocalMidnight
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RunConfigTest {
+
+    @Test
+    fun `duration adjustments carry and borrow across components`() {
+        assertEquals(3600, adjustDuration(59 * 60 + 59, 1))
+        assertEquals(59 * 60 + 59, adjustDuration(3600, -1))
+        assertEquals(3600, adjustDuration(59 * 60, 60))
+        assertEquals(59 * 60, adjustDuration(3600, -60))
+    }
+
+    @Test
+    fun `duration adjustments wrap across complete range`() {
+        assertEquals(0, adjustDuration(MAX_RUN_DURATION_SECONDS, 1))
+        assertEquals(MAX_RUN_DURATION_SECONDS, adjustDuration(0, -1))
+    }
+
+    @Test
+    fun `duration components can be set directly`() {
+        val original = 3600 + 2 * 60 + 3
+
+        assertEquals(2 * 3600 + 2 * 60 + 3, setDurationComponent(original, DurationPart.HOURS, 2))
+        assertEquals(3600 + 30 * 60 + 3, setDurationComponent(original, DurationPart.MINUTES, 30))
+        assertEquals(3600 + 2 * 60 + 45, setDurationComponent(original, DurationPart.SECONDS, 45))
+        assertEquals(MAX_RUN_DURATION_SECONDS, setDurationComponent(0, DurationPart.HOURS, 24))
+    }
+
+    @Test
+    fun `duration component edits reject invalid values and invalid 24 hour combinations`() {
+        assertNull(setDurationComponent(0, DurationPart.HOURS, 25))
+        assertNull(setDurationComponent(0, DurationPart.MINUTES, 60))
+        assertNull(setDurationComponent(0, DurationPart.SECONDS, -1))
+        assertNull(setDurationComponent(60, DurationPart.HOURS, 24))
+        assertNull(setDurationComponent(MAX_RUN_DURATION_SECONDS, DurationPart.MINUTES, 1))
+    }
+
+    @Test
+    fun `remembered run setup values are sanitized`() {
+        val sanitized = sanitizeRunSetup(
+            RunSetupState(
+                goal = RunGoal.DURATION,
+                durationSeconds = MAX_RUN_DURATION_SECONDS + 1,
+                distanceKm = Float.NaN
+            )
+        )
+
+        assertEquals(RunGoal.DURATION, sanitized.goal)
+        assertEquals(MAX_RUN_DURATION_SECONDS, sanitized.durationSeconds)
+        assertEquals(RunSetupState().distanceKm, sanitized.distanceKm)
+    }
 
     @Test
     fun `distance run is unavailable when gps tracking is off`() {

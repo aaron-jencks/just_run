@@ -84,6 +84,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,12 +99,14 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -154,13 +157,14 @@ private fun JustRunApp() {
     remember(context) { AppGraph.init(context); true }
     val settings by AppGraph.settingsRepository.settings.collectAsState()
     val runHistory by AppGraph.runRepository.runs.collectAsState()
+    val persistedRunSetup by AppGraph.runSetupRepository.setup.collectAsState()
     val trackingSession by AppGraph.trackingController.trackingSession.collectAsState()
     val dailyActivity by AppGraph.dailyActivityRepository.snapshot.collectAsState()
     var screen by remember { mutableStateOf(AppScreen.HOME) }
     var selectedRunId by remember { mutableStateOf(runHistory.firstOrNull()?.id ?: 0) }
-    var runSetup by remember {
-        mutableStateOf(RunSetupState())
-    }
+    val runSetup = persistedRunSetup.copy(
+        goal = sanitizeRunGoal(persistedRunSetup.goal, settings.gpsTrackingEnabled)
+    )
     var pendingStart by remember { mutableStateOf(false) }
     var pendingExportRun by remember { mutableStateOf<RunRecord?>(null) }
     val activeRun = trackingSession.activeRun
@@ -266,7 +270,7 @@ private fun JustRunApp() {
                 setup = runSetup,
                 settings = settings,
                 onBack = { screen = AppScreen.HOME },
-                onSetupChanged = { runSetup = it.copy(goal = sanitizeRunGoal(it.goal, settings.gpsTrackingEnabled)) },
+                onSetupChanged = { AppGraph.runSetupRepository.update(it) },
                 onStartRun = {
                     if (settings.gpsTrackingEnabled && !hasLocationPermissions(context)) {
                         pendingStart = true
@@ -293,7 +297,6 @@ private fun JustRunApp() {
                             lapTimeSeconds = sanitizeLapTimeSeconds(it.lapTimeSeconds)
                         )
                     )
-                    runSetup = runSetup.copy(goal = sanitizeRunGoal(runSetup.goal, it.gpsTrackingEnabled))
                 }
             )
 
@@ -1973,22 +1976,52 @@ private fun DurationPickerCard(
                 TimeUnitPicker(
                     label = "HH",
                     value = hours,
-                    onDecrement = { onValueChange(adjustHours(totalSeconds, -1)) },
-                    onIncrement = { onValueChange(adjustHours(totalSeconds, 1)) },
+                    onDecrement = { onValueChange(adjustDuration(totalSeconds, -3600)) },
+                    onIncrement = { onValueChange(adjustDuration(totalSeconds, 3600)) },
+                    invalidRangeMessage = "Hours must be between 0 and 24.",
+                    onValueCommitted = { enteredValue ->
+                        val updated = setDurationComponent(totalSeconds, DurationPart.HOURS, enteredValue)
+                        if (updated == null) {
+                            invalidDurationComponentMessage(DurationPart.HOURS, enteredValue)
+                        } else {
+                            onValueChange(updated)
+                            null
+                        }
+                    },
                     modifier = Modifier.weight(1f)
                 )
                 TimeUnitPicker(
                     label = "MM",
                     value = minutes,
-                    onDecrement = { onValueChange(adjustDurationComponent(totalSeconds, DurationPart.MINUTES, -1)) },
-                    onIncrement = { onValueChange(adjustDurationComponent(totalSeconds, DurationPart.MINUTES, 1)) },
+                    onDecrement = { onValueChange(adjustDuration(totalSeconds, -60)) },
+                    onIncrement = { onValueChange(adjustDuration(totalSeconds, 60)) },
+                    invalidRangeMessage = "Minutes must be between 0 and 59.",
+                    onValueCommitted = { enteredValue ->
+                        val updated = setDurationComponent(totalSeconds, DurationPart.MINUTES, enteredValue)
+                        if (updated == null) {
+                            invalidDurationComponentMessage(DurationPart.MINUTES, enteredValue)
+                        } else {
+                            onValueChange(updated)
+                            null
+                        }
+                    },
                     modifier = Modifier.weight(1f)
                 )
                 TimeUnitPicker(
                     label = "SS",
                     value = seconds,
-                    onDecrement = { onValueChange(adjustDurationComponent(totalSeconds, DurationPart.SECONDS, -1)) },
-                    onIncrement = { onValueChange(adjustDurationComponent(totalSeconds, DurationPart.SECONDS, 1)) },
+                    onDecrement = { onValueChange(adjustDuration(totalSeconds, -1)) },
+                    onIncrement = { onValueChange(adjustDuration(totalSeconds, 1)) },
+                    invalidRangeMessage = "Seconds must be between 0 and 59.",
+                    onValueCommitted = { enteredValue ->
+                        val updated = setDurationComponent(totalSeconds, DurationPart.SECONDS, enteredValue)
+                        if (updated == null) {
+                            invalidDurationComponentMessage(DurationPart.SECONDS, enteredValue)
+                        } else {
+                            onValueChange(updated)
+                            null
+                        }
+                    },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -2003,14 +2036,45 @@ private fun TimeUnitPicker(
     value: Int,
     onDecrement: () -> Unit,
     onIncrement: () -> Unit,
+    invalidRangeMessage: String? = null,
+    onValueCommitted: ((Int) -> String?)? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val incrementSource = remember { MutableInteractionSource() }
     val decrementSource = remember { MutableInteractionSource() }
     val incrementPressed by incrementSource.collectIsPressedAsState()
     val decrementPressed by decrementSource.collectIsPressedAsState()
     val currentIncrement by rememberUpdatedState(onIncrement)
     val currentDecrement by rememberUpdatedState(onDecrement)
+    var fieldValue by remember(label) { mutableStateOf(TextFieldValue("%02d".format(value))) }
+    var isFocused by remember(label) { mutableStateOf(false) }
+
+    LaunchedEffect(value, isFocused) {
+        if (!isFocused) {
+            fieldValue = TextFieldValue("%02d".format(value))
+        }
+    }
+
+    LaunchedEffect(isFocused) {
+        if (isFocused && onValueCommitted != null) {
+            withFrameNanos { }
+            fieldValue = fieldValue.copy(selection = TextRange(0, fieldValue.text.length))
+        }
+    }
+
+    fun commitValue() {
+        val commit = onValueCommitted ?: return
+        val parsed = fieldValue.text.toIntOrNull()
+        val error = if (parsed == null) invalidRangeMessage else commit(parsed)
+        if (error != null) {
+            Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+            fieldValue = TextFieldValue("%02d".format(value))
+        } else {
+            fieldValue = TextFieldValue("%02d".format(parsed))
+        }
+    }
 
     LaunchedEffect(incrementPressed) {
         if (incrementPressed) {
@@ -2052,7 +2116,41 @@ private fun TimeUnitPicker(
             ) {
                 Text("+")
             }
-            Text("%02d".format(value), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            if (onValueCommitted == null) {
+                Text("%02d".format(value), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            } else {
+                OutlinedTextField(
+                    value = fieldValue,
+                    onValueChange = { newValue ->
+                        if (newValue.text.all(Char::isDigit)) fieldValue = newValue
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState ->
+                            if (focusState.isFocused && !isFocused) {
+                                isFocused = true
+                            } else if (!focusState.isFocused && isFocused) {
+                                isFocused = false
+                                commitValue()
+                            }
+                        },
+                    singleLine = true,
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            commitValue()
+                            focusManager.clearFocus()
+                        }
+                    )
+                )
+            }
             OutlinedButton(
                 onClick = currentDecrement,
                 shape = RoundedCornerShape(14.dp),
@@ -2533,9 +2631,48 @@ private fun formatLapTrigger(activeRun: ActiveRunState, unitSystem: UnitSystem):
     LapTrigger.TIME -> "${formatDurationHms(activeRun.lapTimeSeconds ?: 0)} laps"
 }
 
-private enum class DurationPart {
+internal enum class DurationPart {
+    HOURS,
     MINUTES,
     SECONDS
+}
+
+internal fun adjustDuration(totalSeconds: Int, deltaSeconds: Int): Int {
+    val durationRangeSize = MAX_RUN_DURATION_SECONDS.toLong() + 1L
+    return Math.floorMod(
+        totalSeconds.coerceIn(0, MAX_RUN_DURATION_SECONDS).toLong() + deltaSeconds,
+        durationRangeSize
+    ).toInt()
+}
+
+internal fun setDurationComponent(
+    totalSeconds: Int,
+    part: DurationPart,
+    value: Int
+): Int? {
+    val current = totalSeconds.coerceIn(0, MAX_RUN_DURATION_SECONDS)
+    val hours = current / 3600
+    val minutes = (current % 3600) / 60
+    val seconds = current % 60
+    val validRange = when (part) {
+        DurationPart.HOURS -> 0..24
+        DurationPart.MINUTES, DurationPart.SECONDS -> 0..59
+    }
+    if (value !in validRange) return null
+
+    val updated = when (part) {
+        DurationPart.HOURS -> value * 3600 + minutes * 60 + seconds
+        DurationPart.MINUTES -> hours * 3600 + value * 60 + seconds
+        DurationPart.SECONDS -> hours * 3600 + minutes * 60 + value
+    }
+    return updated.takeIf { it <= MAX_RUN_DURATION_SECONDS }
+}
+
+private fun invalidDurationComponentMessage(part: DurationPart, value: Int): String = when {
+    part == DurationPart.HOURS && value !in 0..24 -> "Hours must be between 0 and 24."
+    part == DurationPart.MINUTES && value !in 0..59 -> "Minutes must be between 0 and 59."
+    part == DurationPart.SECONDS && value !in 0..59 -> "Seconds must be between 0 and 59."
+    else -> "24 hours is only valid as 24:00:00."
 }
 
 private fun adjustHours(totalSeconds: Int, delta: Int): Int {
@@ -2554,6 +2691,7 @@ private fun adjustDurationComponent(totalSeconds: Int, part: DurationPart, delta
     val nextMinutes: Int
     val nextSeconds: Int
     when (part) {
+        DurationPart.HOURS -> return adjustHours(totalSeconds, delta)
         DurationPart.MINUTES -> {
             nextMinutes = (minutes + delta).wrapInRange(0, 59)
             nextSeconds = seconds
